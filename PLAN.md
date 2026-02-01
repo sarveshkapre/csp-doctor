@@ -30,3 +30,4 @@ See `docs/PROJECT.md`.
 - New `normalize` command for stable, sorted CSP output.
 - New HTML report export via `report` command.
 - New CLI color presets and HTML report themes.
+- New baseline snapshot schema versioning.

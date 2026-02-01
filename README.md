@@ -74,6 +74,8 @@ csp-doctor diff --baseline "default-src 'self'" --csp "default-src 'self'" --bas
 csp-doctor diff --baseline-json baseline.json --csp "default-src 'self'; frame-ancestors 'none'"
 ```
 
+Baseline snapshots include a `schemaVersion` field for future compatibility.
+
 Print JSON Schema for machine-readable outputs:
 
 ```bash

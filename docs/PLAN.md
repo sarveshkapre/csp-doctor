@@ -40,9 +40,10 @@ Rationale: minimal dependencies, easy to audit, fast to run locally.
 - Add `normalize` command for stable, sorted CSP output.
 - Add HTML report export via `report` command.
 - Add CLI color presets and HTML report themes.
+- Add baseline snapshot schema versioning.
 
 ## Next
-- Add baseline import/export format versioning.
+- Add HTML templates for report themes.
 
 ## Risks
 - CSP semantics are nuanced and browser-specific.

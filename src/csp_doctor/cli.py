@@ -364,6 +364,11 @@ def _load_baseline_snapshot(args: argparse.Namespace) -> BaselineSnapshot | None
         print(f"Invalid JSON in {file_path}: {exc}", file=sys.stderr)
         raise SystemExit(2) from exc
 
+    schema_version = payload.get("schemaVersion", 1)
+    if schema_version != 1:
+        print(f"Unsupported baseline schemaVersion: {schema_version}", file=sys.stderr)
+        raise SystemExit(2)
+
     directives = payload.get("directives")
     findings = payload.get("findings")
     if not isinstance(directives, dict) or not isinstance(findings, list):
@@ -390,6 +395,7 @@ def _load_baseline_snapshot(args: argparse.Namespace) -> BaselineSnapshot | None
 def _write_baseline_snapshot(path: Path, policy: str) -> None:
     snapshot = create_baseline_snapshot(policy)
     payload = {
+        "schemaVersion": 1,
         "directives": snapshot.directives,
         "findings": [asdict(finding) for finding in snapshot.findings],
     }

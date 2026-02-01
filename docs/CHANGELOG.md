@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## v0.1.10 - 2026-02-01
+- Add baseline snapshot schema versioning for diff comparisons.
+
 ## v0.1.9 - 2026-02-01
 - Add color presets for CLI severity labels and report theme controls.
 
