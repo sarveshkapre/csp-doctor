@@ -55,6 +55,13 @@ Generate a report-only header:
 csp-doctor report-only --csp "default-src 'self'; script-src 'self'" --report-uri /csp-report
 ```
 
+Generate a Report-To header template alongside report-only output:
+
+```bash
+csp-doctor report-only --csp "default-src 'self'" --report-to-group csp \
+  --report-to-endpoint https://example.com/csp-report --report-to-header
+```
+
 Emit a copy/paste-ready Report-Only header line:
 
 ```bash

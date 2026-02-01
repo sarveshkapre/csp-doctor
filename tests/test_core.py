@@ -1,4 +1,10 @@
-from csp_doctor.core import analyze_policy, diff_policies, generate_report_only, parse_csp
+from csp_doctor.core import (
+    analyze_policy,
+    build_report_to_header,
+    diff_policies,
+    generate_report_only,
+    parse_csp,
+)
 
 
 def test_parse_csp_basic():
@@ -26,6 +32,7 @@ def test_analyze_policy_flags_missing_frame_ancestors():
         finding.key == "missing-frame-ancestors" for finding in result.findings
     )
 
+
 def test_analyze_policy_flags_missing_trusted_types() -> None:
     result = analyze_policy("default-src 'self'")
     assert any(
@@ -46,9 +53,37 @@ def test_generate_report_only_adds_report_uri():
     assert notes == []
 
 
+def test_generate_report_only_adds_report_to_header_note() -> None:
+    directives = parse_csp("default-src 'self'")
+    header, notes = generate_report_only(
+        directives,
+        report_uri=None,
+        report_to_group="csp",
+        report_to_endpoints=["https://example.com/csp-report"],
+    )
+    assert "report-to csp" in header
+    assert any(note.startswith("Report-To:") for note in notes)
+
+
 def test_diff_policies_finds_added_directive_and_findings() -> None:
     baseline = "default-src 'self'"
     current = "default-src 'self'; frame-ancestors 'none'; report-uri /csp"
     diff = diff_policies(baseline_policy=baseline, policy=current)
     assert "frame-ancestors" in diff.added_directives
-    assert any(finding.key == "missing-reporting" for finding in diff.removed_findings)
+    assert any(
+        finding.key == "missing-reporting" for finding in diff.removed_findings
+    )
+
+
+def test_build_report_to_header() -> None:
+    header = build_report_to_header(
+        "csp",
+        endpoints=["https://example.com/csp-report"],
+        max_age=3600,
+        include_subdomains=True,
+    )
+    assert header is not None
+    assert header.startswith("Report-To: ")
+    assert '"group":"csp"' in header
+    assert '"max_age":3600' in header
+    assert '"include_subdomains":true' in header

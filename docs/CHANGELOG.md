@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## v0.1.5 - 2026-02-01
+- Add Report-To header template generation for report-only workflows.
+
 ## v0.1.4 - 2026-02-01
 - Add CSP Level 3 checks for `require-trusted-types-for` and `trusted-types`.
 

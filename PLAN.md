@@ -25,3 +25,4 @@ See `docs/PROJECT.md`.
 - New `diff` command to compare a CSP against a baseline.
 - New `schema` command to publish JSON Schema for JSON outputs.
 - New CSP Level 3 checks for `require-trusted-types-for` and `trusted-types`.
+- New Report-To header template helper for report-only workflows.

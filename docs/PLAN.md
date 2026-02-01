@@ -35,9 +35,9 @@ Rationale: minimal dependencies, easy to audit, fast to run locally.
 - Add `diff` command to compare a CSP against a baseline.
 - Add `schema` command to publish JSON Schema for machine-readable outputs.
 - Add CSP Level 3 checks for `require-trusted-types-for` and `trusted-types`.
+- Add Report-To header template generation for report-only workflows.
 
 ## Next
-- Add Report-To header JSON templates (`report-to` group + `Report-To:` header helper).
 - Add baseline input/output file format (JSON in/out).
 
 ## Risks

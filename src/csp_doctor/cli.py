@@ -12,6 +12,7 @@ from csp_doctor.core import (
     DiffResult,
     Finding,
     analyze_policy,
+    build_report_to_header,
     diff_policies,
     generate_report_only,
     rollout_plan,
@@ -97,6 +98,26 @@ def main() -> None:
         help="Report-To group name (report-to directive)",
     )
     report_only_parser.add_argument(
+        "--report-to-endpoint",
+        action="append",
+        help="Report-To endpoint URL (repeatable)",
+    )
+    report_only_parser.add_argument(
+        "--report-to-max-age",
+        type=int,
+        help="Report-To max_age in seconds (default: 10886400)",
+    )
+    report_only_parser.add_argument(
+        "--report-to-include-subdomains",
+        action="store_true",
+        help="Set include_subdomains for Report-To",
+    )
+    report_only_parser.add_argument(
+        "--report-to-header",
+        action="store_true",
+        help="Print the Report-To header JSON (requires --report-to-endpoint)",
+    )
+    report_only_parser.add_argument(
         "--full-header",
         action="store_true",
         help="Emit a full header line (Content-Security-Policy-Report-Only: ...)",
@@ -158,13 +179,29 @@ def main() -> None:
         return
 
     if args.command == "report-only":
+        if args.report_to_header and not args.report_to_group:
+            print(
+                "Provide --report-to-group when using --report-to-header",
+                file=sys.stderr,
+            )
+            raise SystemExit(2)
         directives = analyze_policy(policy).directives
         header, notes = generate_report_only(
             directives,
             report_uri=args.report_uri,
             report_to_group=args.report_to_group,
+            report_to_endpoints=args.report_to_endpoint,
+            report_to_max_age=args.report_to_max_age,
+            report_to_include_subdomains=args.report_to_include_subdomains,
         )
         _print_report_only(header, notes, full_header=args.full_header)
+        if args.report_to_header:
+            _print_report_to_header_only(
+                report_to_group=args.report_to_group,
+                report_to_endpoints=args.report_to_endpoint,
+                report_to_max_age=args.report_to_max_age,
+                report_to_include_subdomains=args.report_to_include_subdomains,
+            )
         return
 
     parser.error("Unknown command")
@@ -278,7 +315,35 @@ def _print_report_only(header: str, notes: list[str], *, full_header: bool) -> N
     if notes:
         print("\nNotes:")
         for note in notes:
-            print(f"- {note}")
+            if note.startswith("Report-To:"):
+                print(note)
+            else:
+                print(f"- {note}")
+
+
+def _print_report_to_header_only(
+    *,
+    report_to_group: str | None,
+    report_to_endpoints: list[str] | None,
+    report_to_max_age: int | None,
+    report_to_include_subdomains: bool,
+) -> None:
+    if not report_to_group:
+        print("\nReport-To header:\n")
+        print("Provide --report-to-group to generate a Report-To header.")
+        return
+
+    header = build_report_to_header(
+        report_to_group,
+        endpoints=report_to_endpoints,
+        max_age=report_to_max_age,
+        include_subdomains=report_to_include_subdomains,
+    )
+    print("\nReport-To header:\n")
+    if header:
+        print(header)
+    else:
+        print("Provide --report-to-endpoint to generate a Report-To header.")
 
 
 def _print_diff(diff: DiffResult, *, color: bool) -> None:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 
@@ -278,22 +279,61 @@ def generate_report_only(
     *,
     report_uri: str | None,
     report_to_group: str | None,
+    report_to_endpoints: list[str] | None = None,
+    report_to_max_age: int | None = None,
+    report_to_include_subdomains: bool = False,
 ) -> tuple[str, list[str]]:
     updated = {key: list(values) for key, values in directives.items()}
     notes: list[str] = []
+    report_to_header: str | None = None
 
     if report_to_group:
         updated["report-to"] = [report_to_group]
-        notes.append(
-            "Add a Report-To header JSON configuration matching the group name."
+        report_to_header = build_report_to_header(
+            report_to_group,
+            endpoints=report_to_endpoints,
+            max_age=report_to_max_age,
+            include_subdomains=report_to_include_subdomains,
         )
+        if report_to_header:
+            notes.append("Add the Report-To header below to enable reporting.")
+        else:
+            notes.append(
+                "Add a Report-To header JSON configuration matching the group name."
+            )
     elif report_uri:
         updated["report-uri"] = [report_uri]
     else:
         notes.append("No reporting endpoint provided; violations will be lost.")
 
     header = serialize_policy(updated)
+    if report_to_header:
+        notes.append(report_to_header)
     return header, notes
+
+
+def build_report_to_header(
+    group: str,
+    *,
+    endpoints: list[str] | None,
+    max_age: int | None,
+    include_subdomains: bool = False,
+) -> str | None:
+    if not group:
+        return None
+    if not endpoints:
+        return None
+
+    max_age_value = max_age if max_age is not None else 10886400
+    payload = {
+        "group": group,
+        "max_age": max_age_value,
+        "endpoints": [{"url": endpoint} for endpoint in endpoints],
+    }
+    if include_subdomains:
+        payload["include_subdomains"] = True
+
+    return f"Report-To: {json.dumps(payload, separators=(',', ':'))}"
 
 
 def serialize_policy(directives: Mapping[str, Iterable[str]]) -> str:
