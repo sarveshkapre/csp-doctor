@@ -12,14 +12,4 @@ make check
 ```
 
 ## PR instructions
-If `gh` is authenticated:
-```bash
-git push -u origin HEAD
-gh pr create --fill
-```
-
-Otherwise:
-```bash
-git push -u origin HEAD
-```
-Then open a PR in GitHub from the pushed branch.
+PR: https://github.com/sarveshkapre/csp-doctor/pull/1
