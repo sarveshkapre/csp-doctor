@@ -37,6 +37,12 @@ Generate a rollout plan:
 csp-doctor rollout --csp "default-src 'self'; script-src 'self'"
 ```
 
+Normalize a CSP for stable diffs:
+
+```bash
+csp-doctor normalize --csp "script-src cdn.example.com 'self'; default-src 'self'"
+```
+
 Diff a proposed CSP against a baseline:
 
 ```bash

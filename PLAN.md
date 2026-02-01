@@ -27,3 +27,4 @@ See `docs/PROJECT.md`.
 - New CSP Level 3 checks for `require-trusted-types-for` and `trusted-types`.
 - New Report-To header template helper for report-only workflows.
 - New baseline JSON snapshot support for diff comparisons.
+- New `normalize` command for stable, sorted CSP output.

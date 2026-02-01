@@ -3,6 +3,7 @@ from csp_doctor.core import (
     build_report_to_header,
     diff_policies,
     generate_report_only,
+    normalize_policy,
     parse_csp,
 )
 
@@ -63,6 +64,12 @@ def test_generate_report_only_adds_report_to_header_note() -> None:
     )
     assert "report-to csp" in header
     assert any(note.startswith("Report-To:") for note in notes)
+
+
+def test_normalize_policy_sorts_directives_and_sources() -> None:
+    policy = "script-src cdn.example.com 'self'; default-src 'self'"
+    normalized = normalize_policy(policy)
+    assert normalized == "default-src 'self'; script-src 'self' cdn.example.com"
 
 
 def test_diff_policies_finds_added_directive_and_findings() -> None:

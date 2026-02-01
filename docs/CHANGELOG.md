@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## v0.1.7 - 2026-02-01
+- Add `normalize` command to sort directives and sources for stable CSP output.
+
 ## v0.1.6 - 2026-02-01
 - Add baseline JSON snapshots for diff comparisons (`diff --baseline-out`, `diff --baseline-json`).
 

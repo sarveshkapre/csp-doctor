@@ -37,9 +37,10 @@ Rationale: minimal dependencies, easy to audit, fast to run locally.
 - Add CSP Level 3 checks for `require-trusted-types-for` and `trusted-types`.
 - Add Report-To header template generation for report-only workflows.
 - Add baseline JSON snapshot support for diff comparisons.
+- Add `normalize` command for stable, sorted CSP output.
 
 ## Next
-- Add policy normalizer for sorting directives and sources.
+- Add HTML report export (optional).
 
 ## Risks
 - CSP semantics are nuanced and browser-specific.

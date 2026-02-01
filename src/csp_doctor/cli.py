@@ -18,6 +18,7 @@ from csp_doctor.core import (
     diff_against_snapshot,
     diff_policies,
     generate_report_only,
+    normalize_policy,
     rollout_plan,
 )
 from csp_doctor.schema import get_schema
@@ -49,6 +50,17 @@ def main() -> None:
         "rollout", help="Generate a CSP rollout plan"
     )
     _add_csp_input_args(rollout_parser)
+
+    normalize_parser = subparsers.add_parser(
+        "normalize",
+        help="Normalize a CSP by sorting directives and sources",
+    )
+    _add_csp_input_args(normalize_parser)
+    normalize_parser.add_argument(
+        "--keep-order",
+        action="store_true",
+        help="Preserve original directive/source order",
+    )
 
     schema_parser = subparsers.add_parser(
         "schema",
@@ -166,6 +178,15 @@ def main() -> None:
         directives = analyze_policy(policy).directives
         plan = rollout_plan(directives)
         _print_rollout(plan)
+        return
+
+    if args.command == "normalize":
+        normalized = normalize_policy(
+            policy,
+            sort_sources=not args.keep_order,
+            sort_directives=not args.keep_order,
+        )
+        print(normalized)
         return
 
     if args.command == "diff":

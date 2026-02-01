@@ -368,6 +368,26 @@ def serialize_policy(directives: Mapping[str, Iterable[str]]) -> str:
     return "; ".join(parts)
 
 
+def normalize_policy(
+    policy: str,
+    *,
+    sort_sources: bool = True,
+    sort_directives: bool = True,
+) -> str:
+    directives = parse_csp(policy)
+    items = directives.items()
+    ordered_items = sorted(items, key=lambda item: item[0]) if sort_directives else items
+
+    normalized: dict[str, list[str]] = {}
+    for directive, values in ordered_items:
+        if sort_sources:
+            normalized[directive] = sorted(values)
+        else:
+            normalized[directive] = list(values)
+
+    return serialize_policy(normalized)
+
+
 def _analyze_directive(directive: str, values: list[str]) -> list[Finding]:
     findings: list[Finding] = []
     lower_values = [value.lower() for value in values]

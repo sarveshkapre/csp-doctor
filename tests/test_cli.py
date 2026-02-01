@@ -106,3 +106,24 @@ def test_cli_diff_writes_baseline_json(tmp_path) -> None:
     assert proc.returncode == 0, proc.stderr
     payload = json.loads(baseline_path.read_text())
     assert "directives" in payload
+
+
+def test_cli_normalize_outputs_sorted_policy() -> None:
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "normalize",
+            "--csp",
+            "script-src cdn.example.com 'self'; default-src 'self'",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert (
+        proc.stdout.strip()
+        == "default-src 'self'; script-src 'self' cdn.example.com"
+    )

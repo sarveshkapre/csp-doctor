@@ -11,6 +11,6 @@
 - Release: `make release`
 
 ## Next 3 improvements
-1. Add policy normalizer for sorting directives and sources.
-2. Add HTML report export (optional).
-3. Add shared output style config (themes, color presets).
+1. Add HTML report export (optional).
+2. Add shared output style config (themes, color presets).
+3. Add baseline import/export format versioning.
