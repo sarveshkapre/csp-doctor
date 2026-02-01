@@ -167,3 +167,23 @@ def test_cli_report_writes_file(tmp_path) -> None:
     )
     assert proc.returncode == 0, proc.stderr
     assert output_path.exists()
+
+
+def test_cli_report_theme_dark() -> None:
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "report",
+            "--csp",
+            "default-src 'self'",
+            "--theme",
+            "dark",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert 'data-theme="dark"' in proc.stdout

@@ -39,9 +39,10 @@ Rationale: minimal dependencies, easy to audit, fast to run locally.
 - Add baseline JSON snapshot support for diff comparisons.
 - Add `normalize` command for stable, sorted CSP output.
 - Add HTML report export via `report` command.
+- Add CLI color presets and HTML report themes.
 
 ## Next
-- Add shared output style config (themes, color presets).
+- Add baseline import/export format versioning.
 
 ## Risks
 - CSP semantics are nuanced and browser-specific.

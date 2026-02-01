@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## v0.1.9 - 2026-02-01
+- Add color presets for CLI severity labels and report theme controls.
+
 ## v0.1.8 - 2026-02-01
 - Add HTML report export via `report` command.
 

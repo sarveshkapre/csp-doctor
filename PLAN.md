@@ -29,3 +29,4 @@ See `docs/PROJECT.md`.
 - New baseline JSON snapshot support for diff comparisons.
 - New `normalize` command for stable, sorted CSP output.
 - New HTML report export via `report` command.
+- New CLI color presets and HTML report themes.

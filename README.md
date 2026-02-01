@@ -43,10 +43,22 @@ Normalize a CSP for stable diffs:
 csp-doctor normalize --csp "script-src cdn.example.com 'self'; default-src 'self'"
 ```
 
+Pick a color preset for CLI output:
+
+```bash
+csp-doctor analyze --csp "default-src 'self'" --color-preset vivid
+```
+
 Export an HTML report:
 
 ```bash
 csp-doctor report --csp "default-src 'self'" --output report.html
+```
+
+Pick a report theme (light/dark/system):
+
+```bash
+csp-doctor report --csp "default-src 'self'" --theme dark --output report.html
 ```
 
 Diff a proposed CSP against a baseline:

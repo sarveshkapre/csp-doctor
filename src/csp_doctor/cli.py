@@ -23,6 +23,7 @@ from csp_doctor.core import (
     rollout_plan,
 )
 from csp_doctor.schema import get_schema
+from csp_doctor.style import COLOR_PRESETS, THEME_OVERRIDES, ThemeName
 
 
 def main() -> None:
@@ -39,6 +40,12 @@ def main() -> None:
         choices=["auto", "always", "never"],
         default="auto",
         help="Colorize text output (JSON is never colorized)",
+    )
+    analyze_parser.add_argument(
+        "--color-preset",
+        choices=sorted(COLOR_PRESETS),
+        default="default",
+        help="Color preset for severity labels",
     )
     analyze_parser.add_argument(
         "--format",
@@ -72,6 +79,12 @@ def main() -> None:
         "--output",
         type=Path,
         help="Write HTML report to this file (defaults to stdout)",
+    )
+    report_parser.add_argument(
+        "--theme",
+        choices=["system", "light", "dark"],
+        default="system",
+        help="Theme for HTML report",
     )
 
     schema_parser = subparsers.add_parser(
@@ -120,6 +133,12 @@ def main() -> None:
         choices=["auto", "always", "never"],
         default="auto",
         help="Colorize text output (JSON is never colorized)",
+    )
+    diff_parser.add_argument(
+        "--color-preset",
+        choices=sorted(COLOR_PRESETS),
+        default="default",
+        help="Color preset for severity labels",
     )
 
     report_only_parser = subparsers.add_parser(
@@ -183,6 +202,7 @@ def main() -> None:
             analysis_result.directives,
             analysis_result.findings,
             color=_should_color(args.color),
+            color_preset=args.color_preset,
         )
         return
 
@@ -207,6 +227,7 @@ def main() -> None:
             policy=policy,
             directives=analysis_result.directives,
             findings=analysis_result.findings,
+            theme=cast(ThemeName, args.theme),
         )
         if args.output:
             _write_output_file(cast(Path, args.output), html)
@@ -242,7 +263,11 @@ def main() -> None:
             }
             print(json.dumps(payload, indent=2))
             return
-        _print_diff(diff_result, color=_should_color(args.color))
+        _print_diff(
+            diff_result,
+            color=_should_color(args.color),
+            color_preset=args.color_preset,
+        )
         return
 
     if args.command == "report-only":
@@ -388,6 +413,7 @@ def _print_analysis(
     findings: list[Finding],
     *,
     color: bool,
+    color_preset: str,
 ) -> None:
     print("CSP Doctor analysis\n")
     print("Directives:")
@@ -421,7 +447,12 @@ def _print_analysis(
         key=lambda item: (severity_order.get(item.severity, 9), item.title),
     ):
         label = finding.severity.upper()
-        label = _color_severity_label(label, finding.severity, enabled=color)
+        label = _color_severity_label(
+            label,
+            finding.severity,
+            enabled=color,
+            preset=color_preset,
+        )
         evidence = f" ({finding.evidence})" if finding.evidence else ""
         print(f"- [{label}] {finding.title}{evidence}\n  {finding.detail}")
 
@@ -477,6 +508,7 @@ def _render_html_report(
     policy: str,
     directives: dict[str, list[str]],
     findings: list[Finding],
+    theme: ThemeName = "system",
 ) -> str:
     counts = {"high": 0, "medium": 0, "low": 0}
     for finding in findings:
@@ -509,6 +541,9 @@ def _render_html_report(
         f"{counts[key]} {key}" for key in ("high", "medium", "low") if counts[key]
     ) or "no findings"
 
+    theme_vars = THEME_OVERRIDES.get(theme, {})
+    theme_css = "\n      ".join(f"{key}: {value};" for key, value in theme_vars.items())
+
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -526,6 +561,7 @@ def _render_html_report(
       --high: #b91c1c;
       --medium: #b45309;
       --low: #2563eb;
+      {theme_css}
     }}
     @media (prefers-color-scheme: dark) {{
       :root {{
@@ -581,7 +617,7 @@ def _render_html_report(
     }}
   </style>
 </head>
-<body>
+<body data-theme="{escape(theme)}">
   <div class="container">
     <div class="card">
       <h1>CSP Doctor Report</h1>
@@ -619,7 +655,12 @@ def _render_html_report(
 """
 
 
-def _print_diff(diff: DiffResult, *, color: bool) -> None:
+def _print_diff(
+    diff: DiffResult,
+    *,
+    color: bool,
+    color_preset: str = "default",
+) -> None:
 
     print("CSP diff\n")
 
@@ -660,6 +701,7 @@ def _print_diff(diff: DiffResult, *, color: bool) -> None:
                 finding.severity.upper(),
                 finding.severity,
                 enabled=color,
+                preset=color_preset,
             )
             print(f"  - [{label}] {finding.title} ({finding.key})")
 
@@ -673,6 +715,7 @@ def _print_diff(diff: DiffResult, *, color: bool) -> None:
                 finding.severity.upper(),
                 finding.severity,
                 enabled=color,
+                preset=color_preset,
             )
             print(f"  - [{label}] {finding.title} ({finding.key})")
 
@@ -683,11 +726,13 @@ def _print_diff(diff: DiffResult, *, color: bool) -> None:
                 item["from"].upper(),
                 item["from"],
                 enabled=color,
+                preset=color_preset,
             )
             to_label = _color_severity_label(
                 item["to"].upper(),
                 item["to"],
                 enabled=color,
+                preset=color_preset,
             )
             title = item["title"]
             key = item["key"]
@@ -702,16 +747,23 @@ def _should_color(mode: str) -> bool:
     return sys.stdout.isatty() and os.getenv("NO_COLOR") is None
 
 
-def _color_severity_label(label: str, severity: str, *, enabled: bool) -> str:
+def _color_severity_label(
+    label: str,
+    severity: str,
+    *,
+    enabled: bool,
+    preset: str = "default",
+) -> str:
     if not enabled:
         return label
 
+    colors = COLOR_PRESETS.get(preset, COLOR_PRESETS["default"])
     if severity == "high":
-        return f"\033[31m{label}\033[0m"
+        return f"\033[{colors['high']}m{label}\033[0m"
     if severity == "medium":
-        return f"\033[33m{label}\033[0m"
+        return f"\033[{colors['medium']}m{label}\033[0m"
     if severity == "low":
-        return f"\033[36m{label}\033[0m"
+        return f"\033[{colors['low']}m{label}\033[0m"
     return label
 
 
