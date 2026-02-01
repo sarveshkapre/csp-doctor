@@ -17,6 +17,12 @@ pip install -e .[dev]
 csp-doctor analyze --csp "default-src 'self'; script-src 'self'"
 ```
 
+Tip: You can also paste a full header line (e.g. `Content-Security-Policy: ...`) or pipe via stdin:
+
+```bash
+echo "Content-Security-Policy: default-src 'self'; script-src 'self'" | csp-doctor analyze --stdin
+```
+
 ## Examples
 
 Analyze a policy:
@@ -35,6 +41,12 @@ Generate a report-only header:
 
 ```bash
 csp-doctor report-only --csp "default-src 'self'; script-src 'self'" --report-uri /csp-report
+```
+
+Emit a copy/paste-ready Report-Only header line:
+
+```bash
+csp-doctor report-only --csp "default-src 'self'" --report-uri /csp-report --full-header
 ```
 
 ## Docker

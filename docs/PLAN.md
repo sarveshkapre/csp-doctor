@@ -1,7 +1,13 @@
 # PLAN
 
+## One-line pitch
+Local-first CLI to audit a CSP, highlight risk, and generate a safe rollout plan.
+
 ## Goal
 Ship a local-first CLI that inspects CSP headers, highlights risky patterns, and outputs a safe rollout plan plus a report-only header value.
+
+## Commands
+See `docs/PROJECT.md`.
 
 ## Stack
 - Python 3.11
@@ -17,10 +23,19 @@ Rationale: minimal dependencies, easy to audit, fast to run locally.
 ## MVP checklist
 - [x] Parse CSP directives and sources
 - [x] Detect risky directives (unsafe-inline/eval, wildcards, missing defaults)
+- [x] Flag missing modern hardening directives (frame-ancestors, base-uri, object-src)
 - [x] Report-only header generator
 - [x] Rollout plan output
 - [x] CLI JSON output for analysis
-- [x] Tests for parsing and report-only output
+- [x] Tests for parsing, stdin input, and report-only output
+
+## Shipped (2026-02-01)
+- Support stdin input (`--stdin` / `--csp -`) and header-line input (`Content-Security-Policy: ...`).
+- Improve text UX: severity summary + optional color; report-only can emit a full header line.
+
+## Next
+- Add a `--baseline` mode to diff findings between two CSPs.
+- Add JSON schema for findings payloads.
 
 ## Risks
 - CSP semantics are nuanced and browser-specific.

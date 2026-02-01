@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
-from typing import Iterable
 
 
 @dataclass(frozen=True)
@@ -19,8 +19,43 @@ class AnalysisResult:
     findings: list[Finding]
 
 
+def normalize_policy_input(text: str) -> str:
+    """Normalize various CSP input forms into a raw policy string.
+
+    Accepts either a CSP value (e.g. "default-src 'self'; ...") or a header line
+    (e.g. "Content-Security-Policy: default-src 'self'; ...").
+    """
+
+    stripped = text.strip()
+    if not stripped:
+        return ""
+
+    header_names = {
+        "content-security-policy",
+        "content-security-policy-report-only",
+    }
+
+    for line in stripped.splitlines():
+        if ":" not in line:
+            continue
+        name, value = line.split(":", 1)
+        if name.strip().lower() in header_names:
+            return value.strip()
+
+    lower = stripped.lower()
+    for header_prefix in (
+        "content-security-policy-report-only:",
+        "content-security-policy:",
+    ):
+        index = lower.find(header_prefix)
+        if index != -1:
+            return stripped[index + len(header_prefix) :].strip()
+
+    return stripped
+
+
 def parse_csp(policy: str) -> dict[str, list[str]]:
-    cleaned = policy.strip().strip(";")
+    cleaned = normalize_policy_input(policy).strip().strip(";")
     if not cleaned:
         return {}
 
@@ -58,6 +93,52 @@ def analyze_policy(policy: str) -> AnalysisResult:
                 severity="high",
                 title="Missing default-src",
                 detail="Without default-src, browsers fall back to permissive defaults.",
+            )
+        )
+
+    default_values = [value.lower() for value in directives.get("default-src", [])]
+
+    if "frame-ancestors" not in directives:
+        findings.append(
+            Finding(
+                key="missing-frame-ancestors",
+                severity="medium",
+                title="Missing frame-ancestors",
+                detail=(
+                    "Without frame-ancestors, your site may be embeddable and vulnerable to "
+                    "clickjacking."
+                ),
+            )
+        )
+
+    if "object-src" not in directives:
+        severity = "low" if "'none'" in default_values else "medium"
+        findings.append(
+            Finding(
+                key="missing-object-src",
+                severity=severity,
+                title="Missing object-src",
+                detail="Prefer setting object-src 'none' to disable plugins.",
+            )
+        )
+
+    if "base-uri" not in directives:
+        findings.append(
+            Finding(
+                key="missing-base-uri",
+                severity="low",
+                title="Missing base-uri",
+                detail="Restrict base-uri (often base-uri 'none') to reduce tag injection abuse.",
+            )
+        )
+
+    if "upgrade-insecure-requests" not in directives:
+        findings.append(
+            Finding(
+                key="missing-upgrade-insecure-requests",
+                severity="low",
+                title="Missing upgrade-insecure-requests",
+                detail="Consider upgrade-insecure-requests to reduce mixed-content risk.",
             )
         )
 
@@ -119,7 +200,7 @@ def generate_report_only(
     return header, notes
 
 
-def serialize_policy(directives: dict[str, Iterable[str]]) -> str:
+def serialize_policy(directives: Mapping[str, Iterable[str]]) -> str:
     parts: list[str] = []
     for directive, values in directives.items():
         joined = " ".join(values).strip()

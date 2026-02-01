@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from dataclasses import asdict
 from pathlib import Path
+from typing import cast
 
 from csp_doctor.core import Finding, analyze_policy, generate_report_only, rollout_plan
 
@@ -18,6 +20,12 @@ def main() -> None:
 
     analyze_parser = subparsers.add_parser("analyze", help="Analyze a CSP policy")
     _add_csp_input_args(analyze_parser)
+    analyze_parser.add_argument(
+        "--color",
+        choices=["auto", "always", "never"],
+        default="auto",
+        help="Colorize text output (JSON is never colorized)",
+    )
     analyze_parser.add_argument(
         "--format",
         choices=["text", "json"],
@@ -42,6 +50,11 @@ def main() -> None:
         "--report-to-group",
         help="Report-To group name (report-to directive)",
     )
+    report_only_parser.add_argument(
+        "--full-header",
+        action="store_true",
+        help="Emit a full header line (Content-Security-Policy-Report-Only: ...)",
+    )
 
     args = parser.parse_args()
     policy = _load_policy(args)
@@ -55,7 +68,11 @@ def main() -> None:
             }
             print(json.dumps(payload, indent=2))
             return
-        _print_analysis(result.directives, result.findings)
+        _print_analysis(
+            result.directives,
+            result.findings,
+            color=_should_color(args.color),
+        )
         return
 
     if args.command == "rollout":
@@ -71,7 +88,7 @@ def main() -> None:
             report_uri=args.report_uri,
             report_to_group=args.report_to_group,
         )
-        _print_report_only(header, notes)
+        _print_report_only(header, notes, full_header=args.full_header)
         return
 
     parser.error("Unknown command")
@@ -84,36 +101,72 @@ def _add_csp_input_args(parser: argparse.ArgumentParser) -> None:
         type=Path,
         help="Path to a file containing the CSP header value",
     )
+    parser.add_argument(
+        "--stdin",
+        action="store_true",
+        help="Read CSP from stdin (equivalent to --csp -)",
+    )
 
 
 def _load_policy(args: argparse.Namespace) -> str:
+    if args.csp == "-":
+        return sys.stdin.read()
     if args.csp:
-        return args.csp
+        return cast(str, args.csp)
     if args.file:
+        file_path = cast(Path, args.file)
         try:
-            return args.file.read_text(encoding="utf-8")
+            return file_path.read_text(encoding="utf-8")
         except OSError as exc:
             print(f"Failed to read {args.file}: {exc}", file=sys.stderr)
             raise SystemExit(1) from exc
-    print("Provide --csp or --file", file=sys.stderr)
+    if getattr(args, "stdin", False):
+        return sys.stdin.read()
+    print("Provide --csp, --file, or --stdin", file=sys.stderr)
     raise SystemExit(2)
 
 
-def _print_analysis(directives: dict[str, list[str]], findings: list[Finding]) -> None:
+def _print_analysis(
+    directives: dict[str, list[str]],
+    findings: list[Finding],
+    *,
+    color: bool,
+) -> None:
     print("CSP Doctor analysis\n")
     print("Directives:")
-    for directive, values in directives.items():
-        rendered = " ".join(values) if values else "(no sources)"
-        print(f"- {directive}: {rendered}")
+    if not directives:
+        print("- (none)")
+    else:
+        for directive in sorted(directives):
+            values = directives[directive]
+            rendered = " ".join(values) if values else "(no sources)"
+            print(f"- {directive}: {rendered}")
 
     if not findings:
         print("\nFindings: none")
         return
 
-    print("\nFindings:")
+    counts = {"high": 0, "medium": 0, "low": 0}
     for finding in findings:
+        if finding.severity in counts:
+            counts[finding.severity] += 1
+
+    print("\nFindings:")
+    summary = ", ".join(
+        f"{counts[key]} {key}" for key in ("high", "medium", "low") if counts[key]
+    )
+    if summary:
+        print(f"({len(findings)} total: {summary})\n")
+
+    severity_order = {"high": 0, "medium": 1, "low": 2}
+    for finding in sorted(
+        findings,
+        key=lambda item: (severity_order.get(item.severity, 9), item.title),
+    ):
+        label = finding.severity.upper()
+        label = _color_severity_label(label, finding.severity, enabled=color)
         evidence = f" ({finding.evidence})" if finding.evidence else ""
-        print(f"- [{finding.severity}] {finding.title}{evidence}\n  {finding.detail}")
+        print(f"- [{label}] {finding.title}{evidence}\n  {finding.detail}")
 
 
 def _print_rollout(plan: list[str]) -> None:
@@ -122,13 +175,37 @@ def _print_rollout(plan: list[str]) -> None:
         print(f"{index}. {step}")
 
 
-def _print_report_only(header: str, notes: list[str]) -> None:
+def _print_report_only(header: str, notes: list[str], *, full_header: bool) -> None:
     print("Report-Only header value:\n")
-    print(header)
+    if full_header:
+        print(f"Content-Security-Policy-Report-Only: {header}")
+    else:
+        print(header)
     if notes:
         print("\nNotes:")
         for note in notes:
             print(f"- {note}")
+
+
+def _should_color(mode: str) -> bool:
+    if mode == "never":
+        return False
+    if mode == "always":
+        return True
+    return sys.stdout.isatty() and os.getenv("NO_COLOR") is None
+
+
+def _color_severity_label(label: str, severity: str, *, enabled: bool) -> str:
+    if not enabled:
+        return label
+
+    if severity == "high":
+        return f"\033[31m{label}\033[0m"
+    if severity == "medium":
+        return f"\033[33m{label}\033[0m"
+    if severity == "low":
+        return f"\033[36m{label}\033[0m"
+    return label
 
 
 if __name__ == "__main__":
