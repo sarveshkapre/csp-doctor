@@ -43,6 +43,12 @@ Normalize a CSP for stable diffs:
 csp-doctor normalize --csp "script-src cdn.example.com 'self'; default-src 'self'"
 ```
 
+Export an HTML report:
+
+```bash
+csp-doctor report --csp "default-src 'self'" --output report.html
+```
+
 Diff a proposed CSP against a baseline:
 
 ```bash

@@ -11,6 +11,6 @@
 - Release: `make release`
 
 ## Next 3 improvements
-1. Add HTML report export (optional).
-2. Add shared output style config (themes, color presets).
-3. Add baseline import/export format versioning.
+1. Add shared output style config (themes, color presets).
+2. Add baseline import/export format versioning.
+3. Add HTML templates for report themes.

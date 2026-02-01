@@ -28,3 +28,4 @@ See `docs/PROJECT.md`.
 - New Report-To header template helper for report-only workflows.
 - New baseline JSON snapshot support for diff comparisons.
 - New `normalize` command for stable, sorted CSP output.
+- New HTML report export via `report` command.

@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## v0.1.8 - 2026-02-01
+- Add HTML report export via `report` command.
+
 ## v0.1.7 - 2026-02-01
 - Add `normalize` command to sort directives and sources for stable CSP output.
 

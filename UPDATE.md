@@ -10,6 +10,7 @@
 - New Report-To header template generation for report-only workflows.
 - New baseline JSON snapshots for `diff` comparisons (`--baseline-out`, `--baseline-json`).
 - New `normalize` command to sort directives and sources.
+- New `report` command to export an HTML report.
 - `report-only`: new `--full-header` for a copy/paste-ready header line.
 
 ## How to verify

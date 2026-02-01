@@ -38,9 +38,10 @@ Rationale: minimal dependencies, easy to audit, fast to run locally.
 - Add Report-To header template generation for report-only workflows.
 - Add baseline JSON snapshot support for diff comparisons.
 - Add `normalize` command for stable, sorted CSP output.
+- Add HTML report export via `report` command.
 
 ## Next
-- Add HTML report export (optional).
+- Add shared output style config (themes, color presets).
 
 ## Risks
 - CSP semantics are nuanced and browser-specific.

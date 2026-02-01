@@ -127,3 +127,43 @@ def test_cli_normalize_outputs_sorted_policy() -> None:
         proc.stdout.strip()
         == "default-src 'self'; script-src 'self' cdn.example.com"
     )
+
+
+def test_cli_report_outputs_html() -> None:
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "report",
+            "--csp",
+            "default-src 'self'",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "<html" in proc.stdout
+    assert "CSP Doctor Report" in proc.stdout
+
+
+def test_cli_report_writes_file(tmp_path) -> None:
+    output_path = tmp_path / "report.html"
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "report",
+            "--csp",
+            "default-src 'self'",
+            "--output",
+            str(output_path),
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert output_path.exists()

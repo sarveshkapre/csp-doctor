@@ -5,6 +5,7 @@ import json
 import os
 import sys
 from dataclasses import asdict
+from html import escape
 from pathlib import Path
 from typing import Literal, cast
 
@@ -60,6 +61,17 @@ def main() -> None:
         "--keep-order",
         action="store_true",
         help="Preserve original directive/source order",
+    )
+
+    report_parser = subparsers.add_parser(
+        "report",
+        help="Generate an HTML report for a CSP analysis",
+    )
+    _add_csp_input_args(report_parser)
+    report_parser.add_argument(
+        "--output",
+        type=Path,
+        help="Write HTML report to this file (defaults to stdout)",
     )
 
     schema_parser = subparsers.add_parser(
@@ -187,6 +199,19 @@ def main() -> None:
             sort_directives=not args.keep_order,
         )
         print(normalized)
+        return
+
+    if args.command == "report":
+        analysis_result = analyze_policy(policy)
+        html = _render_html_report(
+            policy=policy,
+            directives=analysis_result.directives,
+            findings=analysis_result.findings,
+        )
+        if args.output:
+            _write_output_file(cast(Path, args.output), html)
+        else:
+            print(html)
         return
 
     if args.command == "diff":
@@ -350,6 +375,14 @@ def _write_baseline_snapshot(path: Path, policy: str) -> None:
         raise SystemExit(1) from exc
 
 
+def _write_output_file(path: Path, content: str) -> None:
+    try:
+        path.write_text(content, encoding="utf-8")
+    except OSError as exc:
+        print(f"Failed to write {path}: {exc}", file=sys.stderr)
+        raise SystemExit(1) from exc
+
+
 def _print_analysis(
     directives: dict[str, list[str]],
     findings: list[Finding],
@@ -437,6 +470,153 @@ def _print_report_to_header_only(
         print(header)
     else:
         print("Provide --report-to-endpoint to generate a Report-To header.")
+
+
+def _render_html_report(
+    *,
+    policy: str,
+    directives: dict[str, list[str]],
+    findings: list[Finding],
+) -> str:
+    counts = {"high": 0, "medium": 0, "low": 0}
+    for finding in findings:
+        if finding.severity in counts:
+            counts[finding.severity] += 1
+
+    severity_order = {"high": 0, "medium": 1, "low": 2}
+    sorted_findings = sorted(
+        findings,
+        key=lambda item: (severity_order.get(item.severity, 9), item.title),
+    )
+
+    directives_rows = "\n".join(
+        f"<tr><td>{escape(name)}</td><td>{escape(' '.join(values) or '(no sources)')}</td></tr>"
+        for name, values in sorted(directives.items())
+    )
+    findings_rows = "\n".join(
+        (
+            "<tr>"
+            f"<td class=\"sev {escape(finding.severity)}\">{escape(finding.severity.upper())}</td>"
+            f"<td>{escape(finding.title)}</td>"
+            f"<td>{escape(finding.detail)}</td>"
+            f"<td>{escape(finding.evidence or '')}</td>"
+            "</tr>"
+        )
+        for finding in sorted_findings
+    )
+
+    summary = ", ".join(
+        f"{counts[key]} {key}" for key in ("high", "medium", "low") if counts[key]
+    ) or "no findings"
+
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CSP Doctor Report</title>
+  <style>
+    :root {{
+      color-scheme: light dark;
+      --bg: #f6f7fb;
+      --card: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --high: #b91c1c;
+      --medium: #b45309;
+      --low: #2563eb;
+    }}
+    @media (prefers-color-scheme: dark) {{
+      :root {{
+        --bg: #0b0f19;
+        --card: #111827;
+        --text: #f9fafb;
+        --muted: #9ca3af;
+        --border: #1f2937;
+      }}
+    }}
+    * {{ box-sizing: border-box; }}
+    body {{
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }}
+    .container {{
+      max-width: 960px;
+      margin: 32px auto;
+      padding: 0 20px 48px;
+    }}
+    .card {{
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px 24px;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+      margin-bottom: 20px;
+    }}
+    h1 {{ margin: 0 0 8px; font-size: 28px; }}
+    h2 {{ margin: 0 0 12px; font-size: 18px; }}
+    .muted {{ color: var(--muted); }}
+    table {{
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }}
+    th, td {{
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }}
+    th {{ color: var(--muted); font-weight: 600; }}
+    .sev.high {{ color: var(--high); font-weight: 700; }}
+    .sev.medium {{ color: var(--medium); font-weight: 700; }}
+    .sev.low {{ color: var(--low); font-weight: 700; }}
+    code {{
+      background: rgba(148, 163, 184, 0.15);
+      padding: 2px 6px;
+      border-radius: 6px;
+    }}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>CSP Doctor Report</h1>
+      <div class="muted">Summary: {escape(summary)}</div>
+    </div>
+    <div class="card">
+      <h2>Policy</h2>
+      <code>{escape(policy.strip()) or "(empty)"}</code>
+    </div>
+    <div class="card">
+      <h2>Directives</h2>
+      <table>
+        <thead>
+          <tr><th>Directive</th><th>Sources</th></tr>
+        </thead>
+        <tbody>
+          {directives_rows or '<tr><td colspan="2">(none)</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h2>Findings</h2>
+      <table>
+        <thead>
+          <tr><th>Severity</th><th>Title</th><th>Detail</th><th>Evidence</th></tr>
+        </thead>
+        <tbody>
+          {findings_rows or '<tr><td colspan="4">(none)</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>
+"""
 
 
 def _print_diff(diff: DiffResult, *, color: bool) -> None:
