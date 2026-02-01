@@ -26,6 +26,14 @@ def test_analyze_policy_flags_missing_frame_ancestors():
         finding.key == "missing-frame-ancestors" for finding in result.findings
     )
 
+def test_analyze_policy_flags_missing_trusted_types() -> None:
+    result = analyze_policy("default-src 'self'")
+    assert any(
+        finding.key == "missing-require-trusted-types-for"
+        for finding in result.findings
+    )
+    assert any(finding.key == "missing-trusted-types" for finding in result.findings)
+
 
 def test_generate_report_only_adds_report_uri():
     directives = parse_csp("default-src 'self'")

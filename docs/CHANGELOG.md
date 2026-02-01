@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## v0.1.4 - 2026-02-01
+- Add CSP Level 3 checks for `require-trusted-types-for` and `trusted-types`.
+
 ## v0.1.3 - 2026-02-01
 - Add `schema` command to print JSON Schema for `analyze --format json` and `diff --format json`.
 

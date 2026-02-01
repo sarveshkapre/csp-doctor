@@ -153,6 +153,28 @@ def analyze_policy(policy: str) -> AnalysisResult:
             )
         )
 
+    if "require-trusted-types-for" not in directives:
+        findings.append(
+            Finding(
+                key="missing-require-trusted-types-for",
+                severity="medium",
+                title="Missing require-trusted-types-for",
+                detail=(
+                    "Consider require-trusted-types-for 'script' to reduce DOM XSS risk."
+                ),
+            )
+        )
+
+    if "trusted-types" not in directives:
+        findings.append(
+            Finding(
+                key="missing-trusted-types",
+                severity="low",
+                title="Missing trusted-types",
+                detail="Define trusted-types policies to harden script sinks.",
+            )
+        )
+
     for directive, values in directives.items():
         findings.extend(_analyze_directive(directive, values))
 

@@ -24,3 +24,4 @@ See `docs/PROJECT.md`.
 - Text output polish (severity summary + optional color) and `report-only --full-header`.
 - New `diff` command to compare a CSP against a baseline.
 - New `schema` command to publish JSON Schema for JSON outputs.
+- New CSP Level 3 checks for `require-trusted-types-for` and `trusted-types`.
