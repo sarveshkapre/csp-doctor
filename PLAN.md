@@ -23,3 +23,4 @@ See `docs/PROJECT.md`.
 - New hardening checks (frame-ancestors, base-uri, object-src, upgrade-insecure-requests).
 - Text output polish (severity summary + optional color) and `report-only --full-header`.
 - New `diff` command to compare a CSP against a baseline.
+- New `schema` command to publish JSON Schema for JSON outputs.

@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## v0.1.3 - 2026-02-01
+- Add `schema` command to print JSON Schema for `analyze --format json` and `diff --format json`.
+
 ## v0.1.2 - 2026-02-01
 - Add `diff` command to compare a CSP against a baseline (directive + finding changes).
 

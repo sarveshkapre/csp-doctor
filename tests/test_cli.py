@@ -68,3 +68,15 @@ def test_cli_diff_outputs_json() -> None:
     payload = json.loads(proc.stdout)
     assert "baseline_directives" in payload
     assert "added_directives" in payload
+
+
+def test_cli_schema_outputs_json() -> None:
+    proc = subprocess.run(
+        [sys.executable, "-m", "csp_doctor", "schema", "--kind", "analyze"],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["title"].startswith("csp-doctor analyze")

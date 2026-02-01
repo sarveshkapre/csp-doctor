@@ -43,6 +43,12 @@ Diff a proposed CSP against a baseline:
 csp-doctor diff --baseline-file baseline.txt --csp "default-src 'self'; frame-ancestors 'none'"
 ```
 
+Print JSON Schema for machine-readable outputs:
+
+```bash
+csp-doctor schema --kind all
+```
+
 Generate a report-only header:
 
 ```bash

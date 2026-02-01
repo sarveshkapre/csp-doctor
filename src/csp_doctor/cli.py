@@ -6,7 +6,7 @@ import os
 import sys
 from dataclasses import asdict
 from pathlib import Path
-from typing import cast
+from typing import Literal, cast
 
 from csp_doctor.core import (
     DiffResult,
@@ -16,6 +16,7 @@ from csp_doctor.core import (
     generate_report_only,
     rollout_plan,
 )
+from csp_doctor.schema import get_schema
 
 
 def main() -> None:
@@ -44,6 +45,17 @@ def main() -> None:
         "rollout", help="Generate a CSP rollout plan"
     )
     _add_csp_input_args(rollout_parser)
+
+    schema_parser = subparsers.add_parser(
+        "schema",
+        help="Print JSON Schema for csp-doctor JSON outputs",
+    )
+    schema_parser.add_argument(
+        "--kind",
+        choices=["all", "analyze", "diff"],
+        default="all",
+        help="Which schema to print",
+    )
 
     diff_parser = subparsers.add_parser(
         "diff",
@@ -91,6 +103,13 @@ def main() -> None:
     )
 
     args = parser.parse_args()
+
+    if args.command == "schema":
+        kind = cast(Literal["all", "analyze", "diff"], args.kind)
+        schema = get_schema(kind)
+        print(json.dumps(schema, indent=2))
+        return
+
     policy = _load_policy(args)
 
     if args.command == "analyze":

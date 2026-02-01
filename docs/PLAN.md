@@ -33,10 +33,11 @@ Rationale: minimal dependencies, easy to audit, fast to run locally.
 - Support stdin input (`--stdin` / `--csp -`) and header-line input (`Content-Security-Policy: ...`).
 - Improve text UX: severity summary + optional color; report-only can emit a full header line.
 - Add `diff` command to compare a CSP against a baseline.
+- Add `schema` command to publish JSON Schema for machine-readable outputs.
 
 ## Next
-- Add JSON schema for findings payloads.
 - Add CSP Level 3 support checks (trusted-types, require-trusted-types-for).
+- Add Report-To header JSON templates (`report-to` group + `Report-To:` header helper).
 
 ## Risks
 - CSP semantics are nuanced and browser-specific.
