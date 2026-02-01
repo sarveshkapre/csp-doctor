@@ -9,10 +9,13 @@ from pathlib import Path
 from typing import Literal, cast
 
 from csp_doctor.core import (
+    BaselineSnapshot,
     DiffResult,
     Finding,
     analyze_policy,
     build_report_to_header,
+    create_baseline_snapshot,
+    diff_against_snapshot,
     diff_policies,
     generate_report_only,
     rollout_plan,
@@ -71,6 +74,16 @@ def main() -> None:
         "--baseline-file",
         type=Path,
         help="Path to a file containing the baseline CSP value",
+    )
+    diff_parser.add_argument(
+        "--baseline-json",
+        type=Path,
+        help="Path to a baseline JSON snapshot file",
+    )
+    diff_parser.add_argument(
+        "--baseline-out",
+        type=Path,
+        help="Write a baseline JSON snapshot to this path",
     )
     diff_parser.add_argument(
         "--format",
@@ -156,8 +169,16 @@ def main() -> None:
         return
 
     if args.command == "diff":
-        baseline_policy = _load_baseline_policy(args)
-        diff_result = diff_policies(baseline_policy=baseline_policy, policy=policy)
+        snapshot = _load_baseline_snapshot(args)
+        if snapshot:
+            diff_result = diff_against_snapshot(snapshot=snapshot, policy=policy)
+        else:
+            baseline_policy = _load_baseline_policy(args)
+            diff_result = diff_policies(baseline_policy=baseline_policy, policy=policy)
+
+        if args.baseline_out:
+            _write_baseline_snapshot(cast(Path, args.baseline_out), policy)
+
         if args.format == "json":
             payload = {
                 "baseline_directives": diff_result.baseline_directives,
@@ -255,6 +276,57 @@ def _load_baseline_policy(args: argparse.Namespace) -> str:
 
     print("Provide --baseline or --baseline-file", file=sys.stderr)
     raise SystemExit(2)
+
+
+def _load_baseline_snapshot(args: argparse.Namespace) -> BaselineSnapshot | None:
+    baseline_json = getattr(args, "baseline_json", None)
+    if not baseline_json:
+        return None
+
+    file_path = cast(Path, baseline_json)
+    try:
+        payload = json.loads(file_path.read_text(encoding="utf-8"))
+    except OSError as exc:
+        print(f"Failed to read {file_path}: {exc}", file=sys.stderr)
+        raise SystemExit(1) from exc
+    except json.JSONDecodeError as exc:
+        print(f"Invalid JSON in {file_path}: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
+
+    directives = payload.get("directives")
+    findings = payload.get("findings")
+    if not isinstance(directives, dict) or not isinstance(findings, list):
+        print("Baseline JSON must include directives and findings", file=sys.stderr)
+        raise SystemExit(2)
+
+    snapshot_findings: list[Finding] = []
+    for item in findings:
+        if not isinstance(item, dict):
+            continue
+        snapshot_findings.append(
+            Finding(
+                key=str(item.get("key", "")),
+                severity=str(item.get("severity", "")),
+                title=str(item.get("title", "")),
+                detail=str(item.get("detail", "")),
+                evidence=item.get("evidence"),
+            )
+        )
+
+    return BaselineSnapshot(directives=directives, findings=snapshot_findings)
+
+
+def _write_baseline_snapshot(path: Path, policy: str) -> None:
+    snapshot = create_baseline_snapshot(policy)
+    payload = {
+        "directives": snapshot.directives,
+        "findings": [asdict(finding) for finding in snapshot.findings],
+    }
+    try:
+        path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    except OSError as exc:
+        print(f"Failed to write {path}: {exc}", file=sys.stderr)
+        raise SystemExit(1) from exc
 
 
 def _print_analysis(

@@ -43,6 +43,13 @@ Diff a proposed CSP against a baseline:
 csp-doctor diff --baseline-file baseline.txt --csp "default-src 'self'; frame-ancestors 'none'"
 ```
 
+Save a baseline snapshot and reuse it later:
+
+```bash
+csp-doctor diff --baseline "default-src 'self'" --csp "default-src 'self'" --baseline-out baseline.json
+csp-doctor diff --baseline-json baseline.json --csp "default-src 'self'; frame-ancestors 'none'"
+```
+
 Print JSON Schema for machine-readable outputs:
 
 ```bash

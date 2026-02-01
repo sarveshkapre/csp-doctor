@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## v0.1.6 - 2026-02-01
+- Add baseline JSON snapshots for diff comparisons (`diff --baseline-out`, `diff --baseline-json`).
+
 ## v0.1.5 - 2026-02-01
 - Add Report-To header template generation for report-only workflows.
 

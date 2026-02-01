@@ -36,9 +36,10 @@ Rationale: minimal dependencies, easy to audit, fast to run locally.
 - Add `schema` command to publish JSON Schema for machine-readable outputs.
 - Add CSP Level 3 checks for `require-trusted-types-for` and `trusted-types`.
 - Add Report-To header template generation for report-only workflows.
+- Add baseline JSON snapshot support for diff comparisons.
 
 ## Next
-- Add baseline input/output file format (JSON in/out).
+- Add policy normalizer for sorting directives and sources.
 
 ## Risks
 - CSP semantics are nuanced and browser-specific.

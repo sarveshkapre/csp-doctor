@@ -31,6 +31,11 @@ class DiffResult:
     severity_changes: list[dict[str, str]]
 
 
+@dataclass(frozen=True)
+class BaselineSnapshot:
+    directives: dict[str, list[str]]
+    findings: list[Finding]
+
 def normalize_policy_input(text: str) -> str:
     """Normalize various CSP input forms into a raw policy string.
 
@@ -196,9 +201,25 @@ def analyze_policy(policy: str) -> AnalysisResult:
 
 def diff_policies(*, baseline_policy: str, policy: str) -> DiffResult:
     baseline = analyze_policy(baseline_policy)
-    current = analyze_policy(policy)
-
     baseline_directives = baseline.directives
+
+    return diff_against_snapshot(
+        snapshot=BaselineSnapshot(
+            directives=baseline_directives,
+            findings=baseline.findings,
+        ),
+        policy=policy,
+    )
+
+
+def create_baseline_snapshot(policy: str) -> BaselineSnapshot:
+    result = analyze_policy(policy)
+    return BaselineSnapshot(directives=result.directives, findings=result.findings)
+
+
+def diff_against_snapshot(*, snapshot: BaselineSnapshot, policy: str) -> DiffResult:
+    current = analyze_policy(policy)
+    baseline_directives = snapshot.directives
     directives = current.directives
 
     baseline_keys = set(baseline_directives)
@@ -222,7 +243,7 @@ def diff_policies(*, baseline_policy: str, policy: str) -> DiffResult:
             "after": list(after_values),
         }
 
-    baseline_findings = {finding.key: finding for finding in baseline.findings}
+    baseline_findings = {finding.key: finding for finding in snapshot.findings}
     current_findings = {finding.key: finding for finding in current.findings}
 
     added_keys = sorted(set(current_findings) - set(baseline_findings))
