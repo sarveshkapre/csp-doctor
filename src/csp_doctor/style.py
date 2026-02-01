@@ -36,3 +36,42 @@ THEME_OVERRIDES: dict[ThemeName, dict[str, str]] = {
     },
 }
 
+
+class TemplateStyle(TypedDict):
+    name: str
+    css: str
+
+
+REPORT_TEMPLATES: dict[str, TemplateStyle] = {
+    "classic": {
+        "name": "Classic",
+        "css": "",
+    },
+    "glass": {
+        "name": "Glass",
+        "css": """
+      .card {
+        background: rgba(255, 255, 255, 0.78);
+        backdrop-filter: blur(12px);
+      }
+      @media (prefers-color-scheme: dark) {
+        .card {
+          background: rgba(17, 24, 39, 0.72);
+        }
+      }
+        """,
+    },
+    "minimal": {
+        "name": "Minimal",
+        "css": """
+      body {
+        background: var(--card);
+      }
+      .card {
+        box-shadow: none;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+      }
+        """,
+    },
+}

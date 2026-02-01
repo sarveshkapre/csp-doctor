@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## v0.1.11 - 2026-02-01
+- Add report templates (classic, glass, minimal) for HTML export.
+
 ## v0.1.10 - 2026-02-01
 - Add baseline snapshot schema versioning for diff comparisons.
 

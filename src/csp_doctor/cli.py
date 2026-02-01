@@ -23,7 +23,7 @@ from csp_doctor.core import (
     rollout_plan,
 )
 from csp_doctor.schema import get_schema
-from csp_doctor.style import COLOR_PRESETS, THEME_OVERRIDES, ThemeName
+from csp_doctor.style import COLOR_PRESETS, REPORT_TEMPLATES, THEME_OVERRIDES, ThemeName
 
 
 def main() -> None:
@@ -85,6 +85,12 @@ def main() -> None:
         choices=["system", "light", "dark"],
         default="system",
         help="Theme for HTML report",
+    )
+    report_parser.add_argument(
+        "--template",
+        choices=sorted(REPORT_TEMPLATES),
+        default="classic",
+        help="Report HTML template style",
     )
 
     schema_parser = subparsers.add_parser(
@@ -228,6 +234,7 @@ def main() -> None:
             directives=analysis_result.directives,
             findings=analysis_result.findings,
             theme=cast(ThemeName, args.theme),
+            template=args.template,
         )
         if args.output:
             _write_output_file(cast(Path, args.output), html)
@@ -515,6 +522,7 @@ def _render_html_report(
     directives: dict[str, list[str]],
     findings: list[Finding],
     theme: ThemeName = "system",
+    template: str = "classic",
 ) -> str:
     counts = {"high": 0, "medium": 0, "low": 0}
     for finding in findings:
@@ -549,6 +557,7 @@ def _render_html_report(
 
     theme_vars = THEME_OVERRIDES.get(theme, {})
     theme_css = "\n      ".join(f"{key}: {value};" for key, value in theme_vars.items())
+    template_css = REPORT_TEMPLATES.get(template, REPORT_TEMPLATES["classic"])["css"]
 
     return f"""<!doctype html>
 <html lang="en">
@@ -621,9 +630,10 @@ def _render_html_report(
       padding: 2px 6px;
       border-radius: 6px;
     }}
+{template_css}
   </style>
 </head>
-<body data-theme="{escape(theme)}">
+<body data-theme="{escape(theme)}" data-template="{escape(template)}">
   <div class="container">
     <div class="card">
       <h1>CSP Doctor Report</h1>

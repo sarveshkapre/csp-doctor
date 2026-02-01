@@ -219,3 +219,23 @@ def test_cli_report_theme_dark() -> None:
     )
     assert proc.returncode == 0, proc.stderr
     assert 'data-theme="dark"' in proc.stdout
+
+
+def test_cli_report_template_glass() -> None:
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "report",
+            "--csp",
+            "default-src 'self'",
+            "--template",
+            "glass",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert 'data-template="glass"' in proc.stdout

@@ -41,9 +41,10 @@ Rationale: minimal dependencies, easy to audit, fast to run locally.
 - Add HTML report export via `report` command.
 - Add CLI color presets and HTML report themes.
 - Add baseline snapshot schema versioning.
+- Add HTML report templates (classic, glass, minimal).
 
 ## Next
-- Add HTML templates for report themes.
+- Add report export to PDF (optional).
 
 ## Risks
 - CSP semantics are nuanced and browser-specific.

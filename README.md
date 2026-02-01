@@ -61,6 +61,12 @@ Pick a report theme (light/dark/system):
 csp-doctor report --csp "default-src 'self'" --theme dark --output report.html
 ```
 
+Pick a report template (classic/glass/minimal):
+
+```bash
+csp-doctor report --csp "default-src 'self'" --template glass --output report.html
+```
+
 Diff a proposed CSP against a baseline:
 
 ```bash

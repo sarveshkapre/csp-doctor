@@ -31,3 +31,4 @@ See `docs/PROJECT.md`.
 - New HTML report export via `report` command.
 - New CLI color presets and HTML report themes.
 - New baseline snapshot schema versioning.
+- New HTML report templates (classic, glass, minimal).

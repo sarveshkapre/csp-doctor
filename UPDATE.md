@@ -13,6 +13,7 @@
 - New `report` command to export an HTML report.
 - New CLI color presets and HTML report themes.
 - New baseline snapshot schema versioning for diff JSON.
+- New HTML report templates (classic, glass, minimal).
 - `report-only`: new `--full-header` for a copy/paste-ready header line.
 
 ## How to verify
