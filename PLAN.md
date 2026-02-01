@@ -22,3 +22,4 @@ See `docs/PROJECT.md`.
 - Stdin support (`--stdin` / `--csp -`) and header-line input parsing.
 - New hardening checks (frame-ancestors, base-uri, object-src, upgrade-insecure-requests).
 - Text output polish (severity summary + optional color) and `report-only --full-header`.
+- New `diff` command to compare a CSP against a baseline.

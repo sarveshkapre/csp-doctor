@@ -32,10 +32,11 @@ Rationale: minimal dependencies, easy to audit, fast to run locally.
 ## Shipped (2026-02-01)
 - Support stdin input (`--stdin` / `--csp -`) and header-line input (`Content-Security-Policy: ...`).
 - Improve text UX: severity summary + optional color; report-only can emit a full header line.
+- Add `diff` command to compare a CSP against a baseline.
 
 ## Next
-- Add a `--baseline` mode to diff findings between two CSPs.
 - Add JSON schema for findings payloads.
+- Add CSP Level 3 support checks (trusted-types, require-trusted-types-for).
 
 ## Risks
 - CSP semantics are nuanced and browser-specific.

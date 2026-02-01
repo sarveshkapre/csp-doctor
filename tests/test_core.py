@@ -1,4 +1,4 @@
-from csp_doctor.core import analyze_policy, generate_report_only, parse_csp
+from csp_doctor.core import analyze_policy, diff_policies, generate_report_only, parse_csp
 
 
 def test_parse_csp_basic():
@@ -36,3 +36,11 @@ def test_generate_report_only_adds_report_uri():
     )
     assert "report-uri /csp" in header
     assert notes == []
+
+
+def test_diff_policies_finds_added_directive_and_findings() -> None:
+    baseline = "default-src 'self'"
+    current = "default-src 'self'; frame-ancestors 'none'; report-uri /csp"
+    diff = diff_policies(baseline_policy=baseline, policy=current)
+    assert "frame-ancestors" in diff.added_directives
+    assert any(finding.key == "missing-reporting" for finding in diff.removed_findings)

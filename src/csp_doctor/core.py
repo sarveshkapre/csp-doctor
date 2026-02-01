@@ -18,6 +18,17 @@ class AnalysisResult:
     directives: dict[str, list[str]]
     findings: list[Finding]
 
+@dataclass(frozen=True)
+class DiffResult:
+    baseline_directives: dict[str, list[str]]
+    directives: dict[str, list[str]]
+    added_directives: list[str]
+    removed_directives: list[str]
+    changed_directives: dict[str, dict[str, list[str]]]
+    added_findings: list[Finding]
+    removed_findings: list[Finding]
+    severity_changes: list[dict[str, str]]
+
 
 def normalize_policy_input(text: str) -> str:
     """Normalize various CSP input forms into a raw policy string.
@@ -158,6 +169,69 @@ def analyze_policy(policy: str) -> AnalysisResult:
         )
 
     return AnalysisResult(directives=directives, findings=findings)
+
+
+def diff_policies(*, baseline_policy: str, policy: str) -> DiffResult:
+    baseline = analyze_policy(baseline_policy)
+    current = analyze_policy(policy)
+
+    baseline_directives = baseline.directives
+    directives = current.directives
+
+    baseline_keys = set(baseline_directives)
+    current_keys = set(directives)
+
+    added_directives = sorted(current_keys - baseline_keys)
+    removed_directives = sorted(baseline_keys - current_keys)
+
+    changed_directives: dict[str, dict[str, list[str]]] = {}
+    for key in sorted(baseline_keys & current_keys):
+        before_values = baseline_directives[key]
+        after_values = directives[key]
+        if before_values == after_values:
+            continue
+        before_set = set(before_values)
+        after_set = set(after_values)
+        changed_directives[key] = {
+            "added": sorted(after_set - before_set),
+            "removed": sorted(before_set - after_set),
+            "before": list(before_values),
+            "after": list(after_values),
+        }
+
+    baseline_findings = {finding.key: finding for finding in baseline.findings}
+    current_findings = {finding.key: finding for finding in current.findings}
+
+    added_keys = sorted(set(current_findings) - set(baseline_findings))
+    removed_keys = sorted(set(baseline_findings) - set(current_findings))
+
+    added_findings = [current_findings[key] for key in added_keys]
+    removed_findings = [baseline_findings[key] for key in removed_keys]
+
+    severity_changes: list[dict[str, str]] = []
+    for key in sorted(set(baseline_findings) & set(current_findings)):
+        before_finding = baseline_findings[key]
+        after_finding = current_findings[key]
+        if before_finding.severity != after_finding.severity:
+            severity_changes.append(
+                {
+                    "key": key,
+                    "from": before_finding.severity,
+                    "to": after_finding.severity,
+                    "title": after_finding.title,
+                }
+            )
+
+    return DiffResult(
+        baseline_directives=baseline_directives,
+        directives=directives,
+        added_directives=added_directives,
+        removed_directives=removed_directives,
+        changed_directives=changed_directives,
+        added_findings=added_findings,
+        removed_findings=removed_findings,
+        severity_changes=severity_changes,
+    )
 
 
 def rollout_plan(directives: dict[str, list[str]]) -> list[str]:

@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## v0.1.2 - 2026-02-01
+- Add `diff` command to compare a CSP against a baseline (directive + finding changes).
+
 ## v0.1.1 - 2026-02-01
 - Accept header-line input (e.g. `Content-Security-Policy: ...`) and stdin (`--stdin` / `--csp -`).
 - Improve analysis coverage (frame-ancestors, base-uri, object-src, upgrade-insecure-requests).

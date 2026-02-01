@@ -37,6 +37,12 @@ Generate a rollout plan:
 csp-doctor rollout --csp "default-src 'self'; script-src 'self'"
 ```
 
+Diff a proposed CSP against a baseline:
+
+```bash
+csp-doctor diff --baseline-file baseline.txt --csp "default-src 'self'; frame-ancestors 'none'"
+```
+
 Generate a report-only header:
 
 ```bash
