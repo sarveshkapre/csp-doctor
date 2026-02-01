@@ -1,0 +1,48 @@
+[build-system]
+requires = ["hatchling>=1.24.2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "csp-doctor"
+version = "0.1.0"
+description = "Analyze Content Security Policy headers and generate safe rollout guidance."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [{ name = "Sarvesh Kapre" }]
+keywords = ["csp", "security", "headers", "web", "analysis"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+]
+
+[project.optional-dependencies]
+dev = [
+  "build>=1.2.2",
+  "mypy>=1.8.0",
+  "pytest>=8.0.0",
+  "ruff>=0.4.0",
+]
+
+[project.scripts]
+csp-doctor = "csp_doctor.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/csp_doctor"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "B", "UP", "SIM"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_unused_configs = true
+warn_unused_ignores = true
+strict = true
+
+[tool.pytest.ini_options]
+addopts = "-q"
