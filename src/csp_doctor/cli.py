@@ -295,8 +295,12 @@ def main() -> None:
             if snapshot:
                 _write_baseline_snapshot_from_snapshot(output_path, snapshot)
             else:
-                assert baseline_policy is not None
-                _write_baseline_snapshot(output_path, baseline_policy, profile=profile)
+                baseline_text = (
+                    baseline_policy
+                    if baseline_policy is not None
+                    else _load_baseline_policy(args)
+                )
+                _write_baseline_snapshot(output_path, baseline_text, profile=profile)
 
         if args.format == "json":
             payload = {
