@@ -55,6 +55,11 @@ def main() -> None:
         default="text",
         help="Output format (text/json/sarif)",
     )
+    analyze_parser.add_argument(
+        "--output",
+        type=Path,
+        help="Write JSON/SARIF output to this file (defaults to stdout)",
+    )
     _add_profile_arg(analyze_parser)
     _add_suppression_args(analyze_parser)
     _add_fail_on_arg(analyze_parser)
@@ -143,6 +148,11 @@ def main() -> None:
         help="Output format",
     )
     diff_parser.add_argument(
+        "--output",
+        type=Path,
+        help="Write JSON output to this file (defaults to stdout)",
+    )
+    diff_parser.add_argument(
         "--color",
         choices=["auto", "always", "never"],
         default="auto",
@@ -213,12 +223,19 @@ def main() -> None:
         findings, suppressed_count = _apply_suppressions(
             analysis_result.findings, suppressions
         )
+        if args.output and args.format == "text":
+            print("--output requires --format json or sarif", file=sys.stderr)
+            raise SystemExit(2)
         if args.format == "json":
             payload = {
                 "directives": analysis_result.directives,
                 "findings": [asdict(finding) for finding in findings],
             }
-            print(json.dumps(payload, indent=2))
+            rendered = json.dumps(payload, indent=2) + "\n"
+            if args.output:
+                _write_output_file(cast(Path, args.output), rendered)
+            else:
+                print(rendered, end="")
             _enforce_fail_on_findings(args.fail_on, findings)
             return
         if args.format == "sarif":
@@ -227,7 +244,11 @@ def main() -> None:
                 directives=analysis_result.directives,
                 findings=findings,
             )
-            print(json.dumps(sarif_payload, indent=2))
+            rendered = json.dumps(sarif_payload, indent=2) + "\n"
+            if args.output:
+                _write_output_file(cast(Path, args.output), rendered)
+            else:
+                print(rendered, end="")
             _enforce_fail_on_findings(args.fail_on, findings)
             return
         _print_analysis(
@@ -297,6 +318,10 @@ def main() -> None:
         suppressions = _load_suppressions(args)
         diff_result = _apply_suppressions_to_diff(diff_result, suppressions)
 
+        if args.output and args.format != "json":
+            print("--output requires --format json", file=sys.stderr)
+            raise SystemExit(2)
+
         if args.baseline_out:
             output_path = cast(Path, args.baseline_out)
             if snapshot:
@@ -324,7 +349,11 @@ def main() -> None:
                 ],
                 "severity_changes": diff_result.severity_changes,
             }
-            print(json.dumps(payload, indent=2))
+            rendered = json.dumps(payload, indent=2) + "\n"
+            if args.output:
+                _write_output_file(cast(Path, args.output), rendered)
+            else:
+                print(rendered, end="")
             _enforce_fail_on_diff(args.fail_on, diff_result)
             return
         _print_diff(

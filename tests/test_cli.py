@@ -3,6 +3,54 @@ import subprocess
 import sys
 
 
+def test_cli_analyze_writes_output_file(tmp_path) -> None:
+    output_path = tmp_path / "analysis.json"
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "analyze",
+            "--csp",
+            "default-src 'self'",
+            "--format",
+            "json",
+            "--output",
+            str(output_path),
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert proc.stdout.strip() == ""
+    payload = json.loads(output_path.read_text(encoding="utf-8"))
+    assert "directives" in payload
+
+
+def test_cli_analyze_rejects_output_for_text_format(tmp_path) -> None:
+    output_path = tmp_path / "analysis.txt"
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "analyze",
+            "--csp",
+            "default-src 'self'",
+            "--format",
+            "text",
+            "--output",
+            str(output_path),
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 2
+    assert "--output requires" in proc.stderr
+
+
 def test_cli_analyze_reads_stdin_dash() -> None:
     proc = subprocess.run(
         [
@@ -232,6 +280,33 @@ def test_cli_diff_fail_on_thresholds_only_considers_regressions() -> None:
     )
     assert proc_high.returncode == 0, proc_high.stderr
     json.loads(proc_high.stdout)
+
+
+def test_cli_diff_writes_output_file(tmp_path) -> None:
+    output_path = tmp_path / "diff.json"
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "diff",
+            "--baseline",
+            "default-src 'self'",
+            "--csp",
+            "default-src 'self'; frame-ancestors 'none'",
+            "--format",
+            "json",
+            "--output",
+            str(output_path),
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert proc.stdout.strip() == ""
+    payload = json.loads(output_path.read_text(encoding="utf-8"))
+    assert payload["added_directives"] == ["frame-ancestors"]
 
 
 def test_cli_diff_supports_finding_suppressions() -> None:
