@@ -10,7 +10,7 @@
   - `src/csp_doctor/cli.py`
   - `tests/test_core.py`
   - `tests/test_cli.py`
-- Commit: pending
+- Commit: `ffbcef16b6e5d26cf1b9d7130bede65960fe8d91`
 - Confidence: high
 - Trust label: validated-local
 - Follow-ups:
@@ -22,7 +22,7 @@
 - Evidence:
   - `src/csp_doctor/cli.py`
   - `tests/test_cli.py`
-- Commit: pending
+- Commit: `ffbcef16b6e5d26cf1b9d7130bede65960fe8d91`
 - Confidence: high
 - Trust label: validated-local
 - Follow-ups:
@@ -34,7 +34,7 @@
 - Evidence:
   - `src/csp_doctor/core.py`
   - `tests/test_core.py`
-- Commit: pending
+- Commit: `ffbcef16b6e5d26cf1b9d7130bede65960fe8d91`
 - Confidence: high
 - Trust label: validated-local
 - Follow-ups:
