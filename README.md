@@ -49,6 +49,12 @@ Pick a color preset for CLI output:
 csp-doctor analyze --csp "default-src 'self'" --color-preset vivid
 ```
 
+Export findings as SARIF for security tooling:
+
+```bash
+csp-doctor analyze --csp "default-src 'self'" --format sarif > csp-doctor.sarif
+```
+
 Export an HTML report:
 
 ```bash

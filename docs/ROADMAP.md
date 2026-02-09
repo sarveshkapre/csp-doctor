@@ -1,12 +1,12 @@
 # ROADMAP
 
 ## Now
-- Improve CSP coverage for modern directives.
+- Improve CSP coverage for modern directives (beyond current `form-action` hardening).
 
 ## Next
-- Add regression mode with diff output.
-- Add JSON schema for findings.
+- Add configurable risk profiles (strict/recommended/legacy-tolerant).
+- Add SARIF upload guidance and examples for GitHub Code Scanning.
 
 ## Later
-- Optional HTML report generation.
-- Integration with CI pipelines.
+- Optional HTML report export to PDF.
+- Integration snippets for common CI pipelines.
