@@ -12,5 +12,5 @@
 
 ## Next 3 improvements
 1. Add report export to PDF (optional).
-2. Add configurable rule profiles (strict/recommended/legacy).
-3. Add CI snippets for publishing SARIF output to Code Scanning.
+2. Add configurable finding suppressions/waivers for known-acceptable exceptions.
+3. Add duplicate-directive warnings (while preserving first-directive browser semantics).

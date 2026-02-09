@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## v0.1.13 - 2026-02-09
+- Add configurable analysis risk profiles (`strict`, `recommended`, `legacy`) for `analyze`, `report`, and `diff`.
+- Persist baseline snapshot `profile` metadata and fail closed on profile mismatches when diffing from JSON snapshots.
+- Align CSP parsing with browser behavior by ignoring duplicate directives after the first occurrence.
+- Add SARIF upload guidance for GitHub Code Scanning (`docs/CODE_SCANNING.md`) and link from README.
+- Fix PR CI secret scanning reliability by passing `GITHUB_TOKEN` to `gitleaks/gitleaks-action@v2`.
+
 ## v0.1.12 - 2026-02-09
 - Fix GitHub Actions secret scan reliability by fetching full git history in CI checkout.
 - Expand analyzer coverage with a `missing-form-action` finding.

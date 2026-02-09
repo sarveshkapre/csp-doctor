@@ -31,6 +31,12 @@ Analyze a policy:
 csp-doctor analyze --csp "default-src 'self'; script-src 'self' cdn.example.com"
 ```
 
+Tune findings for your rollout stage:
+
+```bash
+csp-doctor analyze --csp "default-src 'self'; script-src 'self'" --profile strict
+```
+
 Generate a rollout plan:
 
 ```bash
@@ -54,6 +60,10 @@ Export findings as SARIF for security tooling:
 ```bash
 csp-doctor analyze --csp "default-src 'self'" --format sarif > csp-doctor.sarif
 ```
+
+Publish SARIF to GitHub Code Scanning:
+
+See `docs/CODE_SCANNING.md` for a copy/paste workflow snippet.
 
 Export an HTML report:
 
