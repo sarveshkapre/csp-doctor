@@ -1,4 +1,8 @@
 PYTHON ?= python3
+VENV_PYTHON := .venv/bin/python
+ifneq (,$(wildcard $(VENV_PYTHON)))
+PYTHON := $(VENV_PYTHON)
+endif
 
 .PHONY: setup dev test lint typecheck build check release
 

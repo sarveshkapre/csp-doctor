@@ -1,5 +1,20 @@
 # Incidents
 
+## 2026-02-09 - `diff --baseline-out` wrote a snapshot of the proposed policy
+
+- Status: resolved
+- Impact:
+  - Baseline snapshots could be anchored to the wrong policy, leading to confusing diffs and potentially hiding regressions.
+- Root cause:
+  - The CLI wrote the baseline snapshot using the proposed `--csp` value instead of the baseline input used for the diff.
+- Fix:
+  - Write `--baseline-out` from the baseline policy (or copy/emit the loaded baseline snapshot) and add a regression test.
+- Evidence:
+  - `src/csp_doctor/cli.py`
+  - `tests/test_cli.py`
+- Prevention rules:
+  - Any CLI flag that writes artifacts must have a regression test asserting the artifact matches the documented semantics.
+
 ## 2026-02-01 - GitHub Actions secret scan failures on CI
 
 - Status: resolved
