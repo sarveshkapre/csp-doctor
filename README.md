@@ -89,6 +89,13 @@ Export an HTML report:
 csp-doctor report --csp "default-src 'self'" --output report.html
 ```
 
+Export a PDF report (optional dependency):
+
+```bash
+pip install -e .[pdf]
+csp-doctor report --csp "default-src 'self'" --format pdf --output report.pdf
+```
+
 Pick a report theme (light/dark/system):
 
 ```bash

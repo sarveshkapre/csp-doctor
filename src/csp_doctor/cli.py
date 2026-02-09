@@ -91,6 +91,12 @@ def main() -> None:
         help="Write HTML report to this file (defaults to stdout)",
     )
     report_parser.add_argument(
+        "--format",
+        choices=["html", "pdf"],
+        default="html",
+        help="Output format (html/pdf)",
+    )
+    report_parser.add_argument(
         "--theme",
         choices=["system", "light", "dark"],
         default="system",
@@ -328,10 +334,18 @@ def main() -> None:
             theme=cast(ThemeName, args.theme),
             template=args.template,
         )
-        if args.output:
-            _write_output_file(cast(Path, args.output), html)
+        report_format = cast(str, args.format)
+        if report_format == "pdf":
+            if not args.output:
+                print("--format pdf requires --output", file=sys.stderr)
+                raise SystemExit(2)
+            pdf_bytes = _render_pdf_from_html(html)
+            _write_output_bytes(cast(Path, args.output), pdf_bytes)
         else:
-            print(html)
+            if args.output:
+                _write_output_file(cast(Path, args.output), html)
+            else:
+                print(html)
         _enforce_fail_on_findings(args.fail_on, findings)
         return
 
@@ -1003,6 +1017,33 @@ def _write_output_file(path: Path, content: str) -> None:
         path.write_text(content, encoding="utf-8")
     except OSError as exc:
         print(f"Failed to write {path}: {exc}", file=sys.stderr)
+        raise SystemExit(1) from exc
+
+
+def _write_output_bytes(path: Path, content: bytes) -> None:
+    try:
+        path.write_bytes(content)
+    except OSError as exc:
+        print(f"Failed to write {path}: {exc}", file=sys.stderr)
+        raise SystemExit(1) from exc
+
+
+def _render_pdf_from_html(html: str) -> bytes:
+    try:
+        from weasyprint import HTML  # type: ignore[import-not-found]
+    except Exception as exc:
+        print(
+            "PDF export requires the optional 'weasyprint' dependency. "
+            "Install with: pip install csp-doctor[pdf]",
+            file=sys.stderr,
+        )
+        raise SystemExit(2) from exc
+
+    try:
+        rendered = HTML(string=html).write_pdf()
+        return cast(bytes, rendered)
+    except Exception as exc:
+        print(f"Failed to render PDF: {exc}", file=sys.stderr)
         raise SystemExit(1) from exc
 
 

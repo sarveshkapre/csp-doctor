@@ -727,6 +727,55 @@ def test_cli_report_writes_file(tmp_path) -> None:
     assert output_path.exists()
 
 
+def test_cli_report_pdf_requires_output() -> None:
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "report",
+            "--csp",
+            "default-src 'self'",
+            "--format",
+            "pdf",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 2
+    assert "requires --output" in proc.stderr
+
+
+def test_cli_report_writes_pdf_file_or_explains_dependency(tmp_path) -> None:
+    output_path = tmp_path / "report.pdf"
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "report",
+            "--csp",
+            "default-src 'self'",
+            "--format",
+            "pdf",
+            "--output",
+            str(output_path),
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if proc.returncode == 0:
+        data = output_path.read_bytes()
+        assert data.startswith(b"%PDF"), "expected a PDF file header"
+        return
+
+    assert proc.returncode in (1, 2)
+    stderr = proc.stderr.lower()
+    assert "weasyprint" in stderr or "render pdf" in stderr
+
+
 def test_cli_report_theme_dark() -> None:
     proc = subprocess.run(
         [

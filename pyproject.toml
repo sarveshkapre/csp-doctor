@@ -25,6 +25,9 @@ dev = [
   "pytest>=8.0.0",
   "ruff>=0.4.0",
 ]
+pdf = [
+  "weasyprint>=61.0",
+]
 
 [project.scripts]
 csp-doctor = "csp_doctor.cli:main"
