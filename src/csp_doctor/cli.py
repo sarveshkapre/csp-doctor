@@ -169,6 +169,13 @@ def main() -> None:
         help="Write a baseline JSON snapshot to this path",
     )
     diff_parser.add_argument(
+        "--baseline-env",
+        help=(
+            "Environment label for baseline snapshots (written to --baseline-out, and if "
+            "used with --baseline-json it must match the snapshot's environment)"
+        ),
+    )
+    diff_parser.add_argument(
         "--format",
         choices=["text", "json"],
         default="text",
@@ -330,7 +337,12 @@ def main() -> None:
 
     if args.command == "diff":
         profile = _get_profile(args)
-        snapshot = _load_baseline_snapshot(args, expected_profile=profile)
+        baseline_env = cast(str | None, getattr(args, "baseline_env", None))
+        snapshot = _load_baseline_snapshot(
+            args,
+            expected_profile=profile,
+            expected_environment=baseline_env,
+        )
         baseline_policy: str | None = None
         if snapshot:
             diff_result = diff_against_snapshot(
@@ -363,7 +375,12 @@ def main() -> None:
                     if baseline_policy is not None
                     else _load_baseline_policy(args)
                 )
-                _write_baseline_snapshot(output_path, baseline_text, profile=profile)
+                _write_baseline_snapshot(
+                    output_path,
+                    baseline_text,
+                    profile=profile,
+                    environment=baseline_env,
+                )
 
         if args.format == "json":
             payload = {
@@ -793,6 +810,7 @@ def _load_baseline_snapshot(
     args: argparse.Namespace,
     *,
     expected_profile: RiskProfile,
+    expected_environment: str | None,
 ) -> BaselineSnapshot | None:
     baseline_json = getattr(args, "baseline_json", None)
     if not baseline_json:
@@ -828,6 +846,34 @@ def _load_baseline_snapshot(
         )
         raise SystemExit(2)
 
+    environment_value = payload.get("environment")
+    environment: str | None = None
+    if environment_value is not None:
+        if not isinstance(environment_value, str):
+            print("Invalid baseline snapshot: environment must be a string", file=sys.stderr)
+            raise SystemExit(2)
+        environment = environment_value
+
+    if expected_environment:
+        if environment is None:
+            print(
+                (
+                    "Baseline snapshot environment missing: "
+                    f"expected={expected_environment}"
+                ),
+                file=sys.stderr,
+            )
+            raise SystemExit(2)
+        if environment != expected_environment:
+            print(
+                (
+                    "Baseline snapshot environment mismatch: "
+                    f"snapshot={environment}, expected={expected_environment}"
+                ),
+                file=sys.stderr,
+            )
+            raise SystemExit(2)
+
     try:
         directives = _validate_baseline_directives(payload.get("directives"))
         snapshot_findings = _validate_baseline_findings(payload.get("findings"))
@@ -839,11 +885,18 @@ def _load_baseline_snapshot(
         directives=directives,
         findings=snapshot_findings,
         profile=snapshot_profile,
+        environment=environment,
     )
 
 
-def _write_baseline_snapshot(path: Path, policy: str, *, profile: RiskProfile) -> None:
-    snapshot = create_baseline_snapshot(policy, profile=profile)
+def _write_baseline_snapshot(
+    path: Path,
+    policy: str,
+    *,
+    profile: RiskProfile,
+    environment: str | None,
+) -> None:
+    snapshot = create_baseline_snapshot(policy, profile=profile, environment=environment)
     payload = _baseline_snapshot_payload(snapshot)
     try:
         path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
@@ -862,12 +915,15 @@ def _write_baseline_snapshot_from_snapshot(path: Path, snapshot: BaselineSnapsho
 
 
 def _baseline_snapshot_payload(snapshot: BaselineSnapshot) -> dict[str, object]:
-    return {
+    payload: dict[str, object] = {
         "schemaVersion": 1,
         "profile": snapshot.profile,
         "directives": snapshot.directives,
         "findings": [asdict(finding) for finding in snapshot.findings],
     }
+    if snapshot.environment is not None:
+        payload["environment"] = snapshot.environment
+    return payload
 
 
 def _validate_baseline_directives(value: object) -> dict[str, list[str]]:

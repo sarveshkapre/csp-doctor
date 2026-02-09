@@ -397,6 +397,69 @@ def test_cli_diff_writes_baseline_json(tmp_path) -> None:
     assert "directives" in payload
 
 
+def test_cli_diff_writes_baseline_environment(tmp_path) -> None:
+    baseline_path = tmp_path / "baseline.json"
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "diff",
+            "--baseline",
+            "default-src 'self'",
+            "--csp",
+            "default-src 'self'",
+            "--baseline-env",
+            "staging",
+            "--baseline-out",
+            str(baseline_path),
+            "--format",
+            "json",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(baseline_path.read_text())
+    assert payload["environment"] == "staging"
+
+
+def test_cli_diff_rejects_baseline_environment_mismatch(tmp_path) -> None:
+    baseline_path = tmp_path / "baseline.json"
+    baseline_path.write_text(
+        json.dumps(
+            {
+                "schemaVersion": 1,
+                "profile": "recommended",
+                "environment": "prod",
+                "directives": {"default-src": ["'self'"]},
+                "findings": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "diff",
+            "--baseline-json",
+            str(baseline_path),
+            "--baseline-env",
+            "staging",
+            "--csp",
+            "default-src 'self'",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 2
+    assert "environment mismatch" in proc.stderr
+
+
 def test_cli_diff_baseline_out_snapshots_baseline_policy(tmp_path) -> None:
     baseline_path = tmp_path / "baseline.json"
     proc = subprocess.run(

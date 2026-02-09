@@ -116,6 +116,13 @@ csp-doctor diff --baseline-json baseline.json --csp "default-src 'self'; frame-a
 
 Baseline snapshots include a `schemaVersion` field for future compatibility.
 
+Optionally label baseline snapshots with an environment (staging/prod) and enforce it when loading:
+
+```bash
+csp-doctor diff --baseline "default-src 'self'" --csp "default-src 'self'" --baseline-env staging --baseline-out baseline.json
+csp-doctor diff --baseline-json baseline.json --baseline-env staging --csp "default-src 'self'; frame-ancestors 'none'"
+```
+
 Print JSON Schema for machine-readable outputs:
 
 ```bash

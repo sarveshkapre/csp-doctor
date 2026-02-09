@@ -41,6 +41,7 @@ class BaselineSnapshot:
     directives: dict[str, list[str]]
     findings: list[Finding]
     profile: RiskProfile = "recommended"
+    environment: str | None = None
 
 def normalize_policy_input(text: str) -> str:
     """Normalize various CSP input forms into a raw policy string.
@@ -287,6 +288,7 @@ def create_baseline_snapshot(
     policy: str,
     *,
     profile: RiskProfile = "recommended",
+    environment: str | None = None,
 ) -> BaselineSnapshot:
     resolved_profile = _validate_risk_profile(profile)
     result = analyze_policy(policy, profile=resolved_profile)
@@ -294,6 +296,7 @@ def create_baseline_snapshot(
         directives=result.directives,
         findings=result.findings,
         profile=resolved_profile,
+        environment=environment,
     )
 
 
