@@ -69,6 +69,32 @@ def test_cli_analyze_outputs_sarif() -> None:
     assert payload["runs"][0]["results"]
 
 
+def test_cli_analyze_legacy_profile_suppresses_modern_findings() -> None:
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "analyze",
+            "--csp",
+            "default-src 'self'; script-src 'self'",
+            "--profile",
+            "legacy",
+            "--format",
+            "json",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    keys = {finding["key"] for finding in payload["findings"]}
+    assert "missing-require-trusted-types-for" not in keys
+    assert "missing-trusted-types" not in keys
+    assert "script-src-missing-strict-dynamic" not in keys
+
+
 def test_cli_diff_outputs_json() -> None:
     proc = subprocess.run(
         [
@@ -129,7 +155,34 @@ def test_cli_diff_writes_baseline_json(tmp_path) -> None:
     assert proc.returncode == 0, proc.stderr
     payload = json.loads(baseline_path.read_text())
     assert payload["schemaVersion"] == 1
+    assert payload["profile"] == "recommended"
     assert "directives" in payload
+
+
+def test_cli_diff_writes_profile_to_baseline_json(tmp_path) -> None:
+    baseline_path = tmp_path / "baseline.json"
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "diff",
+            "--baseline",
+            "default-src 'self'",
+            "--csp",
+            "default-src 'self'",
+            "--baseline-out",
+            str(baseline_path),
+            "--profile",
+            "strict",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(baseline_path.read_text())
+    assert payload["profile"] == "strict"
 
 
 def test_cli_diff_rejects_unknown_schema_version(tmp_path) -> None:
@@ -161,6 +214,40 @@ def test_cli_diff_rejects_unknown_schema_version(tmp_path) -> None:
     )
     assert proc.returncode == 2
     assert "schemaVersion" in proc.stderr
+
+
+def test_cli_diff_rejects_baseline_profile_mismatch(tmp_path) -> None:
+    baseline_path = tmp_path / "baseline.json"
+    baseline_path.write_text(
+        json.dumps(
+            {
+                "schemaVersion": 1,
+                "profile": "strict",
+                "directives": {"default-src": ["'self'"]},
+                "findings": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "diff",
+            "--baseline-json",
+            str(baseline_path),
+            "--profile",
+            "recommended",
+            "--csp",
+            "default-src 'self'",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 2
+    assert "profile mismatch" in proc.stderr
 
 
 def test_cli_diff_rejects_invalid_baseline_directives(tmp_path) -> None:

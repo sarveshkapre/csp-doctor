@@ -3,6 +3,10 @@ from __future__ import annotations
 import json
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
+from typing import Literal, cast
+
+RiskProfile = Literal["strict", "recommended", "legacy"]
+RISK_PROFILES: tuple[RiskProfile, ...] = ("strict", "recommended", "legacy")
 
 
 @dataclass(frozen=True)
@@ -18,6 +22,7 @@ class Finding:
 class AnalysisResult:
     directives: dict[str, list[str]]
     findings: list[Finding]
+
 
 @dataclass(frozen=True)
 class DiffResult:
@@ -35,6 +40,7 @@ class DiffResult:
 class BaselineSnapshot:
     directives: dict[str, list[str]]
     findings: list[Finding]
+    profile: RiskProfile = "recommended"
 
 def normalize_policy_input(text: str) -> str:
     """Normalize various CSP input forms into a raw policy string.
@@ -83,12 +89,16 @@ def parse_csp(policy: str) -> dict[str, list[str]]:
             continue
         tokens = part.split()
         name = tokens[0].lower()
+        if name in directives:
+            # Browsers ignore duplicate directives after the first occurrence.
+            continue
         values = [token.strip() for token in tokens[1:]]
         directives[name] = values
     return directives
 
 
-def analyze_policy(policy: str) -> AnalysisResult:
+def analyze_policy(policy: str, *, profile: RiskProfile = "recommended") -> AnalysisResult:
+    resolved_profile = _validate_risk_profile(profile)
     directives = parse_csp(policy)
     findings: list[Finding] = []
 
@@ -209,29 +219,54 @@ def analyze_policy(policy: str) -> AnalysisResult:
             )
         )
 
+    findings = _apply_risk_profile(findings, profile=resolved_profile)
     return AnalysisResult(directives=directives, findings=findings)
 
 
-def diff_policies(*, baseline_policy: str, policy: str) -> DiffResult:
-    baseline = analyze_policy(baseline_policy)
+def diff_policies(
+    *,
+    baseline_policy: str,
+    policy: str,
+    profile: RiskProfile = "recommended",
+) -> DiffResult:
+    resolved_profile = _validate_risk_profile(profile)
+    baseline = analyze_policy(baseline_policy, profile=resolved_profile)
     baseline_directives = baseline.directives
 
     return diff_against_snapshot(
         snapshot=BaselineSnapshot(
             directives=baseline_directives,
             findings=baseline.findings,
+            profile=resolved_profile,
         ),
         policy=policy,
+        profile=resolved_profile,
     )
 
 
-def create_baseline_snapshot(policy: str) -> BaselineSnapshot:
-    result = analyze_policy(policy)
-    return BaselineSnapshot(directives=result.directives, findings=result.findings)
+def create_baseline_snapshot(
+    policy: str,
+    *,
+    profile: RiskProfile = "recommended",
+) -> BaselineSnapshot:
+    resolved_profile = _validate_risk_profile(profile)
+    result = analyze_policy(policy, profile=resolved_profile)
+    return BaselineSnapshot(
+        directives=result.directives,
+        findings=result.findings,
+        profile=resolved_profile,
+    )
 
 
-def diff_against_snapshot(*, snapshot: BaselineSnapshot, policy: str) -> DiffResult:
-    current = analyze_policy(policy)
+def diff_against_snapshot(
+    *,
+    snapshot: BaselineSnapshot,
+    policy: str,
+    profile: RiskProfile | None = None,
+) -> DiffResult:
+    snapshot_profile = _validate_risk_profile(snapshot.profile)
+    resolved_profile = snapshot_profile if profile is None else _validate_risk_profile(profile)
+    current = analyze_policy(policy, profile=resolved_profile)
     baseline_directives = snapshot.directives
     directives = current.directives
 
@@ -289,6 +324,86 @@ def diff_against_snapshot(*, snapshot: BaselineSnapshot, policy: str) -> DiffRes
         removed_findings=removed_findings,
         severity_changes=severity_changes,
     )
+
+
+_PROFILE_DISABLED_KEYS: dict[RiskProfile, set[str]] = {
+    "strict": set(),
+    "recommended": set(),
+    "legacy": {
+        "missing-require-trusted-types-for",
+        "missing-trusted-types",
+        "script-src-missing-strict-dynamic",
+        "missing-upgrade-insecure-requests",
+    },
+}
+
+_PROFILE_SEVERITY_OVERRIDES: dict[RiskProfile, dict[str, str]] = {
+    "strict": {
+        "missing-frame-ancestors": "high",
+        "missing-object-src": "high",
+        "missing-base-uri": "medium",
+        "missing-form-action": "high",
+        "missing-upgrade-insecure-requests": "medium",
+        "missing-require-trusted-types-for": "high",
+        "missing-trusted-types": "medium",
+        "script-src-missing-nonce-hash": "high",
+        "script-src-missing-strict-dynamic": "medium",
+    },
+    "recommended": {},
+    "legacy": {
+        "missing-form-action": "low",
+        "script-src-missing-nonce-hash": "low",
+    },
+}
+
+
+def _validate_risk_profile(profile: str) -> RiskProfile:
+    if profile not in RISK_PROFILES:
+        values = ", ".join(RISK_PROFILES)
+        raise ValueError(f"Unsupported profile '{profile}'. Expected one of: {values}")
+    return cast(RiskProfile, profile)
+
+
+def _apply_risk_profile(findings: list[Finding], *, profile: RiskProfile) -> list[Finding]:
+    if profile == "recommended":
+        return findings
+
+    disabled = _PROFILE_DISABLED_KEYS[profile]
+    adjusted: list[Finding] = []
+    for finding in findings:
+        if finding.key in disabled:
+            continue
+
+        severity = _severity_for_profile(finding=finding, profile=profile)
+        if severity == finding.severity:
+            adjusted.append(finding)
+            continue
+
+        adjusted.append(
+            Finding(
+                key=finding.key,
+                severity=severity,
+                title=finding.title,
+                detail=finding.detail,
+                evidence=finding.evidence,
+            )
+        )
+
+    return adjusted
+
+
+def _severity_for_profile(*, finding: Finding, profile: RiskProfile) -> str:
+    explicit = _PROFILE_SEVERITY_OVERRIDES[profile].get(finding.key)
+    if explicit:
+        return explicit
+
+    if profile == "strict":
+        if finding.key.endswith(("-wildcard", "-http-scheme", "-data-scheme")):
+            return "high"
+        if finding.key.endswith("-blob-scheme"):
+            return "medium"
+
+    return finding.severity
 
 
 def rollout_plan(directives: dict[str, list[str]]) -> list[str]:

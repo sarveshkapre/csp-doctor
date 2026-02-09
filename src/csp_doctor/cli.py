@@ -10,9 +10,11 @@ from pathlib import Path
 from typing import Literal, cast
 
 from csp_doctor.core import (
+    RISK_PROFILES,
     BaselineSnapshot,
     DiffResult,
     Finding,
+    RiskProfile,
     analyze_policy,
     build_report_to_header,
     create_baseline_snapshot,
@@ -53,6 +55,7 @@ def main() -> None:
         default="text",
         help="Output format (text/json/sarif)",
     )
+    _add_profile_arg(analyze_parser)
 
     rollout_parser = subparsers.add_parser(
         "rollout", help="Generate a CSP rollout plan"
@@ -92,6 +95,7 @@ def main() -> None:
         default="classic",
         help="Report HTML template style",
     )
+    _add_profile_arg(report_parser)
 
     schema_parser = subparsers.add_parser(
         "schema",
@@ -146,6 +150,7 @@ def main() -> None:
         default="default",
         help="Color preset for severity labels",
     )
+    _add_profile_arg(diff_parser)
 
     report_only_parser = subparsers.add_parser(
         "report-only", help="Generate a Report-Only CSP header"
@@ -196,7 +201,8 @@ def main() -> None:
     policy = _load_policy(args)
 
     if args.command == "analyze":
-        analysis_result = analyze_policy(policy)
+        profile = _get_profile(args)
+        analysis_result = analyze_policy(policy, profile=profile)
         if args.format == "json":
             payload = {
                 "directives": analysis_result.directives,
@@ -236,7 +242,8 @@ def main() -> None:
         return
 
     if args.command == "report":
-        analysis_result = analyze_policy(policy)
+        profile = _get_profile(args)
+        analysis_result = analyze_policy(policy, profile=profile)
         html = _render_html_report(
             policy=policy,
             directives=analysis_result.directives,
@@ -251,15 +258,24 @@ def main() -> None:
         return
 
     if args.command == "diff":
-        snapshot = _load_baseline_snapshot(args)
+        profile = _get_profile(args)
+        snapshot = _load_baseline_snapshot(args, expected_profile=profile)
         if snapshot:
-            diff_result = diff_against_snapshot(snapshot=snapshot, policy=policy)
+            diff_result = diff_against_snapshot(
+                snapshot=snapshot,
+                policy=policy,
+                profile=profile,
+            )
         else:
             baseline_policy = _load_baseline_policy(args)
-            diff_result = diff_policies(baseline_policy=baseline_policy, policy=policy)
+            diff_result = diff_policies(
+                baseline_policy=baseline_policy,
+                policy=policy,
+                profile=profile,
+            )
 
         if args.baseline_out:
-            _write_baseline_snapshot(cast(Path, args.baseline_out), policy)
+            _write_baseline_snapshot(cast(Path, args.baseline_out), policy, profile=profile)
 
         if args.format == "json":
             payload = {
@@ -328,6 +344,19 @@ def _add_csp_input_args(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_profile_arg(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--profile",
+        choices=list(RISK_PROFILES),
+        default="recommended",
+        help="Risk profile for finding severity and coverage",
+    )
+
+
+def _get_profile(args: argparse.Namespace) -> RiskProfile:
+    return cast(RiskProfile, getattr(args, "profile", "recommended"))
+
+
 def _load_policy(args: argparse.Namespace) -> str:
     if args.csp == "-":
         return sys.stdin.read()
@@ -364,7 +393,11 @@ def _load_baseline_policy(args: argparse.Namespace) -> str:
     raise SystemExit(2)
 
 
-def _load_baseline_snapshot(args: argparse.Namespace) -> BaselineSnapshot | None:
+def _load_baseline_snapshot(
+    args: argparse.Namespace,
+    *,
+    expected_profile: RiskProfile,
+) -> BaselineSnapshot | None:
     baseline_json = getattr(args, "baseline_json", None)
     if not baseline_json:
         return None
@@ -385,19 +418,39 @@ def _load_baseline_snapshot(args: argparse.Namespace) -> BaselineSnapshot | None
         raise SystemExit(2)
 
     try:
+        snapshot_profile = _validate_baseline_profile(payload.get("profile", "recommended"))
+    except ValueError as exc:
+        print(f"Invalid baseline snapshot: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
+    if snapshot_profile != expected_profile:
+        print(
+            (
+                "Baseline snapshot profile mismatch: "
+                f"snapshot={snapshot_profile}, requested={expected_profile}"
+            ),
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
+
+    try:
         directives = _validate_baseline_directives(payload.get("directives"))
         snapshot_findings = _validate_baseline_findings(payload.get("findings"))
     except ValueError as exc:
         print(f"Invalid baseline snapshot: {exc}", file=sys.stderr)
         raise SystemExit(2) from exc
 
-    return BaselineSnapshot(directives=directives, findings=snapshot_findings)
+    return BaselineSnapshot(
+        directives=directives,
+        findings=snapshot_findings,
+        profile=snapshot_profile,
+    )
 
 
-def _write_baseline_snapshot(path: Path, policy: str) -> None:
-    snapshot = create_baseline_snapshot(policy)
+def _write_baseline_snapshot(path: Path, policy: str, *, profile: RiskProfile) -> None:
+    snapshot = create_baseline_snapshot(policy, profile=profile)
     payload = {
         "schemaVersion": 1,
+        "profile": snapshot.profile,
         "directives": snapshot.directives,
         "findings": [asdict(finding) for finding in snapshot.findings],
     }
@@ -469,6 +522,15 @@ def _validate_baseline_findings(value: object) -> list[Finding]:
         )
 
     return findings
+
+
+def _validate_baseline_profile(value: object) -> RiskProfile:
+    if not isinstance(value, str):
+        raise ValueError("profile must be a string")
+    if value not in RISK_PROFILES:
+        expected = ", ".join(RISK_PROFILES)
+        raise ValueError(f"profile must be one of: {expected}")
+    return cast(RiskProfile, value)
 
 
 def _write_output_file(path: Path, content: str) -> None:

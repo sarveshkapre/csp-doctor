@@ -22,6 +22,11 @@ def test_parse_csp_accepts_header_line():
     assert directives["script-src"] == ["'self'"]
 
 
+def test_parse_csp_duplicate_directive_keeps_first_occurrence() -> None:
+    directives = parse_csp("default-src 'self'; default-src *")
+    assert directives["default-src"] == ["'self'"]
+
+
 def test_analyze_policy_missing_default():
     result = analyze_policy("script-src 'self'")
     assert any(finding.key == "missing-default-src" for finding in result.findings)
@@ -46,6 +51,25 @@ def test_analyze_policy_flags_missing_trusted_types() -> None:
         for finding in result.findings
     )
     assert any(finding.key == "missing-trusted-types" for finding in result.findings)
+
+
+def test_analyze_policy_legacy_profile_suppresses_modern_findings() -> None:
+    result = analyze_policy("default-src 'self'; script-src 'self'", profile="legacy")
+    keys = {finding.key for finding in result.findings}
+    assert "missing-require-trusted-types-for" not in keys
+    assert "missing-trusted-types" not in keys
+    assert "script-src-missing-strict-dynamic" not in keys
+
+
+def test_analyze_policy_strict_profile_escalates_script_src_severity() -> None:
+    recommended = analyze_policy("default-src 'self'; script-src 'self'")
+    strict = analyze_policy("default-src 'self'; script-src 'self'", profile="strict")
+
+    recommended_map = {finding.key: finding for finding in recommended.findings}
+    strict_map = {finding.key: finding for finding in strict.findings}
+
+    assert recommended_map["script-src-missing-nonce-hash"].severity == "medium"
+    assert strict_map["script-src-missing-nonce-hash"].severity == "high"
 
 
 def test_generate_report_only_adds_report_uri():
