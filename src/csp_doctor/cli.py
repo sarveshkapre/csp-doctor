@@ -117,6 +117,33 @@ def main() -> None:
         help="Which schema to print",
     )
 
+    explain_parser = subparsers.add_parser(
+        "explain",
+        help="Explain a finding key (use --list to see common keys)",
+    )
+    explain_parser.add_argument(
+        "key",
+        nargs="?",
+        help="Finding key to explain (example: missing-reporting)",
+    )
+    explain_parser.add_argument(
+        "--list",
+        action="store_true",
+        help="List known finding keys and key patterns",
+    )
+    explain_parser.add_argument(
+        "--format",
+        choices=["text", "json"],
+        default="text",
+        help="Output format",
+    )
+    explain_parser.add_argument(
+        "--profile",
+        choices=list(RISK_PROFILES),
+        default="recommended",
+        help="Profile to explain under (affects severity and suppression)",
+    )
+
     diff_parser = subparsers.add_parser(
         "diff",
         help="Diff a CSP against a baseline (useful for rollout hardening)",
@@ -212,6 +239,10 @@ def main() -> None:
         kind = cast(Literal["all", "analyze", "diff"], args.kind)
         schema = get_schema(kind)
         print(json.dumps(schema, indent=2))
+        return
+
+    if args.command == "explain":
+        _handle_explain(args)
         return
 
     policy = _load_policy(args)
@@ -590,6 +621,154 @@ def _load_policy(args: argparse.Namespace) -> str:
         return sys.stdin.read()
     print("Provide --csp, --file, or --stdin", file=sys.stderr)
     raise SystemExit(2)
+
+
+_EXPLAIN_KEY_TEMPLATES: tuple[str, ...] = (
+    "duplicate-directive-<directive>",
+    "<directive>-unsafe-inline",
+    "<directive>-unsafe-eval",
+    "<directive>-wildcard",
+    "<directive>-http-scheme",
+    "<directive>-data-scheme",
+    "<directive>-blob-scheme",
+)
+
+
+def _explain_known_keys() -> list[str]:
+    # Keep in sync with csp_doctor.core finding emission logic.
+    fixed = [
+        "empty-policy",
+        "missing-default-src",
+        "missing-frame-ancestors",
+        "missing-object-src",
+        "missing-base-uri",
+        "missing-form-action",
+        "missing-upgrade-insecure-requests",
+        "missing-require-trusted-types-for",
+        "missing-trusted-types",
+        "missing-reporting",
+        "script-src-missing-nonce-hash",
+        "script-src-missing-strict-dynamic",
+        "object-src-not-none",
+        "base-uri-not-none",
+    ]
+    return sorted(set(fixed + list(_EXPLAIN_KEY_TEMPLATES)))
+
+
+def _policy_for_explain_key(key: str) -> str | None:
+    if key == "empty-policy":
+        return ""
+
+    # Defaults that trigger "missing-*" checks + script-src checks.
+    if key in {
+        "missing-default-src",
+        "missing-frame-ancestors",
+        "missing-object-src",
+        "missing-base-uri",
+        "missing-form-action",
+        "missing-upgrade-insecure-requests",
+        "missing-require-trusted-types-for",
+        "missing-trusted-types",
+        "missing-reporting",
+        "script-src-missing-nonce-hash",
+        "script-src-missing-strict-dynamic",
+    }:
+        return "script-src 'self'"
+
+    if key == "object-src-not-none":
+        return "default-src 'self'; object-src https://example.com"
+
+    if key == "base-uri-not-none":
+        return "default-src 'self'; base-uri https://example.com"
+
+    if key.startswith("duplicate-directive-"):
+        directive = key.removeprefix("duplicate-directive-").strip()
+        if not directive:
+            return None
+        return f"default-src 'self'; {directive} 'self'; {directive} https://example.com"
+
+    for suffix, token in (
+        ("-unsafe-inline", "'unsafe-inline'"),
+        ("-unsafe-eval", "'unsafe-eval'"),
+        ("-wildcard", "*"),
+        ("-http-scheme", "http:"),
+        ("-data-scheme", "data:"),
+        ("-blob-scheme", "blob:"),
+    ):
+        if key.endswith(suffix):
+            directive = key[: -len(suffix)].strip()
+            if not directive:
+                return None
+            return f"default-src 'self'; {directive} {token}"
+
+    return None
+
+
+def _handle_explain(args: argparse.Namespace) -> None:
+    fmt = cast(str, args.format)
+    profile = cast(RiskProfile, args.profile)
+
+    if getattr(args, "list", False):
+        keys = _explain_known_keys()
+        if fmt == "json":
+            print(json.dumps({"keys": keys}, indent=2))
+            return
+        print("\n".join(keys))
+        return
+
+    key = cast(str | None, getattr(args, "key", None))
+    if not key:
+        print("Provide a finding key or use --list", file=sys.stderr)
+        raise SystemExit(2)
+
+    policy = _policy_for_explain_key(key)
+    if policy is None:
+        print(f"Unknown finding key: {key}. Use 'csp-doctor explain --list'.", file=sys.stderr)
+        raise SystemExit(2)
+
+    result = analyze_policy(policy, profile=profile)
+    finding = next((item for item in result.findings if item.key == key), None)
+    note: str | None = None
+    emitted = True
+
+    if finding is None and profile != "recommended":
+        # Some profiles intentionally suppress findings (for example legacy).
+        recommended = analyze_policy(policy, profile="recommended")
+        finding = next((item for item in recommended.findings if item.key == key), None)
+        if finding is not None:
+            emitted = False
+            note = f"Not emitted under profile '{profile}'."
+
+    if finding is None:
+        print(f"Unknown finding key: {key}. Use 'csp-doctor explain --list'.", file=sys.stderr)
+        raise SystemExit(2)
+
+    payload: dict[str, object] = {
+        "key": finding.key,
+        "profile": profile,
+        "emitted": emitted,
+        "severity": finding.severity,
+        "title": finding.title,
+        "detail": finding.detail,
+        "evidence": finding.evidence,
+    }
+    if note:
+        payload["note"] = note
+
+    if fmt == "json":
+        print(json.dumps(payload, indent=2))
+        return
+
+    print(f"Key: {finding.key}")
+    print(f"Profile: {profile}")
+    print(f"Emitted: {emitted}")
+    print(f"Severity: {finding.severity}")
+    print(f"Title: {finding.title}")
+    print(f"Detail: {finding.detail}")
+    if finding.evidence:
+        print(f"Evidence: {finding.evidence}")
+    if note:
+        print(f"Note: {note}")
 
 
 def _load_baseline_policy(args: argparse.Namespace) -> str:

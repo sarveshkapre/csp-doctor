@@ -347,6 +347,28 @@ def test_cli_schema_outputs_json() -> None:
     assert payload["title"].startswith("csp-doctor analyze")
 
 
+def test_cli_explain_outputs_json() -> None:
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "explain",
+            "missing-reporting",
+            "--format",
+            "json",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["key"] == "missing-reporting"
+    assert payload["title"]
+    assert payload["detail"]
+
+
 def test_cli_diff_writes_baseline_json(tmp_path) -> None:
     baseline_path = tmp_path / "baseline.json"
     proc = subprocess.run(

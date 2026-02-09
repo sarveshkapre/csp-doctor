@@ -122,6 +122,13 @@ Print JSON Schema for machine-readable outputs:
 csp-doctor schema --kind all
 ```
 
+Explain a finding key (and list known keys/patterns):
+
+```bash
+csp-doctor explain missing-reporting
+csp-doctor explain --list
+```
+
 Generate a report-only header:
 
 ```bash
