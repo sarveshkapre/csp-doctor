@@ -32,6 +32,13 @@ def test_analyze_policy_missing_default():
     assert any(finding.key == "missing-default-src" for finding in result.findings)
 
 
+def test_analyze_policy_flags_duplicate_directives() -> None:
+    result = analyze_policy("default-src 'self'; default-src https://example.com")
+    assert any(
+        finding.key == "duplicate-directive-default-src" for finding in result.findings
+    )
+
+
 def test_analyze_policy_flags_missing_frame_ancestors():
     result = analyze_policy("default-src 'self'")
     assert any(

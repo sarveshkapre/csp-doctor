@@ -95,6 +95,30 @@ def test_cli_analyze_legacy_profile_suppresses_modern_findings() -> None:
     assert "script-src-missing-strict-dynamic" not in keys
 
 
+def test_cli_analyze_supports_finding_suppressions() -> None:
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "analyze",
+            "--csp",
+            "default-src 'self'",
+            "--suppress",
+            "missing-frame-ancestors",
+            "--format",
+            "json",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    keys = {finding["key"] for finding in payload["findings"]}
+    assert "missing-frame-ancestors" not in keys
+
+
 def test_cli_diff_outputs_json() -> None:
     proc = subprocess.run(
         [
@@ -117,6 +141,32 @@ def test_cli_diff_outputs_json() -> None:
     payload = json.loads(proc.stdout)
     assert "baseline_directives" in payload
     assert "added_directives" in payload
+
+
+def test_cli_diff_supports_finding_suppressions() -> None:
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "diff",
+            "--baseline",
+            "default-src 'self'",
+            "--csp",
+            "default-src 'self'; report-uri /csp",
+            "--suppress",
+            "missing-reporting",
+            "--format",
+            "json",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    keys = {finding["key"] for finding in payload["removed_findings"]}
+    assert "missing-reporting" not in keys
 
 
 def test_cli_schema_outputs_json() -> None:
@@ -157,6 +207,32 @@ def test_cli_diff_writes_baseline_json(tmp_path) -> None:
     assert payload["schemaVersion"] == 1
     assert payload["profile"] == "recommended"
     assert "directives" in payload
+
+
+def test_cli_diff_baseline_out_snapshots_baseline_policy(tmp_path) -> None:
+    baseline_path = tmp_path / "baseline.json"
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "diff",
+            "--baseline",
+            "default-src 'self'",
+            "--csp",
+            "default-src *",
+            "--baseline-out",
+            str(baseline_path),
+            "--format",
+            "json",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(baseline_path.read_text())
+    assert payload["directives"]["default-src"] == ["'self'"]
 
 
 def test_cli_diff_writes_profile_to_baseline_json(tmp_path) -> None:

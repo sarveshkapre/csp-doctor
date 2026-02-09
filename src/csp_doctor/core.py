@@ -97,8 +97,26 @@ def parse_csp(policy: str) -> dict[str, list[str]]:
     return directives
 
 
+def _collect_directive_occurrences(policy: str) -> dict[str, list[list[str]]]:
+    cleaned = normalize_policy_input(policy).strip().strip(";")
+    if not cleaned:
+        return {}
+
+    occurrences: dict[str, list[list[str]]] = {}
+    for raw in cleaned.split(";"):
+        part = raw.strip()
+        if not part:
+            continue
+        tokens = part.split()
+        name = tokens[0].lower()
+        values = [token.strip() for token in tokens[1:]]
+        occurrences.setdefault(name, []).append(values)
+    return occurrences
+
+
 def analyze_policy(policy: str, *, profile: RiskProfile = "recommended") -> AnalysisResult:
     resolved_profile = _validate_risk_profile(profile)
+    occurrences = _collect_directive_occurrences(policy)
     directives = parse_csp(policy)
     findings: list[Finding] = []
 
@@ -112,6 +130,27 @@ def analyze_policy(policy: str, *, profile: RiskProfile = "recommended") -> Anal
             )
         )
         return AnalysisResult(directives=directives, findings=findings)
+
+    for directive, values_list in sorted(occurrences.items()):
+        if len(values_list) < 2:
+            continue
+        ignored = values_list[1:]
+        ignored_rendered = "; ".join(
+            " ".join(values) if values else "(no sources)" for values in ignored
+        )
+        evidence = f"ignored: {ignored_rendered}" if ignored_rendered else None
+        findings.append(
+            Finding(
+                key=f"duplicate-directive-{directive}",
+                severity="medium",
+                title=f"Duplicate directive: {directive}",
+                detail=(
+                    f"CSP contains multiple '{directive}' directives. Browsers use the first and "
+                    "ignore later duplicates, which can lead to unintended policy behavior."
+                ),
+                evidence=evidence,
+            )
+        )
 
     if "default-src" not in directives:
         findings.append(

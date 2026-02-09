@@ -56,6 +56,7 @@ def main() -> None:
         help="Output format (text/json/sarif)",
     )
     _add_profile_arg(analyze_parser)
+    _add_suppression_args(analyze_parser)
 
     rollout_parser = subparsers.add_parser(
         "rollout", help="Generate a CSP rollout plan"
@@ -96,6 +97,7 @@ def main() -> None:
         help="Report HTML template style",
     )
     _add_profile_arg(report_parser)
+    _add_suppression_args(report_parser)
 
     schema_parser = subparsers.add_parser(
         "schema",
@@ -151,6 +153,7 @@ def main() -> None:
         help="Color preset for severity labels",
     )
     _add_profile_arg(diff_parser)
+    _add_suppression_args(diff_parser)
 
     report_only_parser = subparsers.add_parser(
         "report-only", help="Generate a Report-Only CSP header"
@@ -203,10 +206,14 @@ def main() -> None:
     if args.command == "analyze":
         profile = _get_profile(args)
         analysis_result = analyze_policy(policy, profile=profile)
+        suppressions = _load_suppressions(args)
+        findings, suppressed_count = _apply_suppressions(
+            analysis_result.findings, suppressions
+        )
         if args.format == "json":
             payload = {
                 "directives": analysis_result.directives,
-                "findings": [asdict(finding) for finding in analysis_result.findings],
+                "findings": [asdict(finding) for finding in findings],
             }
             print(json.dumps(payload, indent=2))
             return
@@ -214,15 +221,16 @@ def main() -> None:
             sarif_payload = _build_sarif_report(
                 policy=policy,
                 directives=analysis_result.directives,
-                findings=analysis_result.findings,
+                findings=findings,
             )
             print(json.dumps(sarif_payload, indent=2))
             return
         _print_analysis(
             analysis_result.directives,
-            analysis_result.findings,
+            findings,
             color=_should_color(args.color),
             color_preset=args.color_preset,
+            suppressed_count=suppressed_count,
         )
         return
 
@@ -244,10 +252,14 @@ def main() -> None:
     if args.command == "report":
         profile = _get_profile(args)
         analysis_result = analyze_policy(policy, profile=profile)
+        suppressions = _load_suppressions(args)
+        findings, _suppressed_count = _apply_suppressions(
+            analysis_result.findings, suppressions
+        )
         html = _render_html_report(
             policy=policy,
             directives=analysis_result.directives,
-            findings=analysis_result.findings,
+            findings=findings,
             theme=cast(ThemeName, args.theme),
             template=args.template,
         )
@@ -260,6 +272,7 @@ def main() -> None:
     if args.command == "diff":
         profile = _get_profile(args)
         snapshot = _load_baseline_snapshot(args, expected_profile=profile)
+        baseline_policy: str | None = None
         if snapshot:
             diff_result = diff_against_snapshot(
                 snapshot=snapshot,
@@ -274,8 +287,16 @@ def main() -> None:
                 profile=profile,
             )
 
+        suppressions = _load_suppressions(args)
+        diff_result = _apply_suppressions_to_diff(diff_result, suppressions)
+
         if args.baseline_out:
-            _write_baseline_snapshot(cast(Path, args.baseline_out), policy, profile=profile)
+            output_path = cast(Path, args.baseline_out)
+            if snapshot:
+                _write_baseline_snapshot_from_snapshot(output_path, snapshot)
+            else:
+                assert baseline_policy is not None
+                _write_baseline_snapshot(output_path, baseline_policy, profile=profile)
 
         if args.format == "json":
             payload = {
@@ -350,6 +371,82 @@ def _add_profile_arg(parser: argparse.ArgumentParser) -> None:
         choices=list(RISK_PROFILES),
         default="recommended",
         help="Risk profile for finding severity and coverage",
+    )
+
+
+def _add_suppression_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--suppress",
+        action="append",
+        default=[],
+        help="Suppress a finding by key (repeatable)",
+    )
+    parser.add_argument(
+        "--suppress-file",
+        type=Path,
+        help="Read suppressions from a file (one key per line; supports # comments)",
+    )
+
+
+def _load_suppressions(args: argparse.Namespace) -> set[str]:
+    suppressions: set[str] = set()
+
+    raw = getattr(args, "suppress", [])
+    if isinstance(raw, list):
+        for item in raw:
+            if not item:
+                continue
+            key = str(item).strip()
+            if key:
+                suppressions.add(key)
+
+    suppress_file = getattr(args, "suppress_file", None)
+    if suppress_file:
+        file_path = cast(Path, suppress_file)
+        try:
+            content = file_path.read_text(encoding="utf-8")
+        except OSError as exc:
+            print(f"Failed to read {file_path}: {exc}", file=sys.stderr)
+            raise SystemExit(1) from exc
+        for line in content.splitlines():
+            stripped = line.split("#", 1)[0].strip()
+            if stripped:
+                suppressions.add(stripped)
+
+    return suppressions
+
+
+def _apply_suppressions(
+    findings: list[Finding],
+    suppressions: set[str],
+) -> tuple[list[Finding], int]:
+    if not suppressions:
+        return findings, 0
+    filtered = [finding for finding in findings if finding.key not in suppressions]
+    return filtered, len(findings) - len(filtered)
+
+
+def _apply_suppressions_to_diff(diff: DiffResult, suppressions: set[str]) -> DiffResult:
+    if not suppressions:
+        return diff
+
+    added = [finding for finding in diff.added_findings if finding.key not in suppressions]
+    removed = [
+        finding for finding in diff.removed_findings if finding.key not in suppressions
+    ]
+    severity_changes = [
+        item for item in diff.severity_changes if item.get("key") not in suppressions
+    ]
+
+    return DiffResult(
+        baseline_directives=diff.baseline_directives,
+        directives=diff.directives,
+        added_directives=diff.added_directives,
+        removed_directives=diff.removed_directives,
+        changed_directives=diff.changed_directives,
+        added_findings=added,
+        removed_findings=removed,
+        severity_changes=severity_changes,
     )
 
 
@@ -448,17 +545,30 @@ def _load_baseline_snapshot(
 
 def _write_baseline_snapshot(path: Path, policy: str, *, profile: RiskProfile) -> None:
     snapshot = create_baseline_snapshot(policy, profile=profile)
-    payload = {
-        "schemaVersion": 1,
-        "profile": snapshot.profile,
-        "directives": snapshot.directives,
-        "findings": [asdict(finding) for finding in snapshot.findings],
-    }
+    payload = _baseline_snapshot_payload(snapshot)
     try:
         path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     except OSError as exc:
         print(f"Failed to write {path}: {exc}", file=sys.stderr)
         raise SystemExit(1) from exc
+
+
+def _write_baseline_snapshot_from_snapshot(path: Path, snapshot: BaselineSnapshot) -> None:
+    payload = _baseline_snapshot_payload(snapshot)
+    try:
+        path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    except OSError as exc:
+        print(f"Failed to write {path}: {exc}", file=sys.stderr)
+        raise SystemExit(1) from exc
+
+
+def _baseline_snapshot_payload(snapshot: BaselineSnapshot) -> dict[str, object]:
+    return {
+        "schemaVersion": 1,
+        "profile": snapshot.profile,
+        "directives": snapshot.directives,
+        "findings": [asdict(finding) for finding in snapshot.findings],
+    }
 
 
 def _validate_baseline_directives(value: object) -> dict[str, list[str]]:
@@ -547,6 +657,7 @@ def _print_analysis(
     *,
     color: bool,
     color_preset: str,
+    suppressed_count: int = 0,
 ) -> None:
     print("CSP Doctor analysis\n")
     print("Directives:")
@@ -573,6 +684,8 @@ def _print_analysis(
     )
     if summary:
         print(f"({len(findings)} total: {summary})\n")
+    if suppressed_count:
+        print(f"(suppressed {suppressed_count} finding(s))\n")
 
     severity_order = {"high": 0, "medium": 1, "low": 2}
     for finding in sorted(
