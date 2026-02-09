@@ -119,6 +119,49 @@ def test_cli_analyze_supports_finding_suppressions() -> None:
     assert "missing-frame-ancestors" not in keys
 
 
+def test_cli_analyze_fail_on_thresholds() -> None:
+    proc_high = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "analyze",
+            "--csp",
+            "default-src 'self'",
+            "--fail-on",
+            "high",
+            "--format",
+            "json",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc_high.returncode == 0, proc_high.stderr
+    json.loads(proc_high.stdout)
+
+    proc_med = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "analyze",
+            "--csp",
+            "default-src 'self'",
+            "--fail-on",
+            "medium",
+            "--format",
+            "json",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc_med.returncode == 1
+    json.loads(proc_med.stdout)
+    assert "Failing" in proc_med.stderr
+
+
 def test_cli_diff_outputs_json() -> None:
     proc = subprocess.run(
         [
@@ -141,6 +184,54 @@ def test_cli_diff_outputs_json() -> None:
     payload = json.loads(proc.stdout)
     assert "baseline_directives" in payload
     assert "added_directives" in payload
+
+
+def test_cli_diff_fail_on_thresholds_only_considers_regressions() -> None:
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "diff",
+            "--baseline",
+            "default-src 'self'; report-uri /csp",
+            "--csp",
+            "default-src 'self'",
+            "--fail-on",
+            "medium",
+            "--format",
+            "json",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 1
+    payload = json.loads(proc.stdout)
+    keys = {finding["key"] for finding in payload["added_findings"]}
+    assert "missing-reporting" in keys
+
+    proc_high = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "diff",
+            "--baseline",
+            "default-src 'self'; report-uri /csp",
+            "--csp",
+            "default-src 'self'",
+            "--fail-on",
+            "high",
+            "--format",
+            "json",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc_high.returncode == 0, proc_high.stderr
+    json.loads(proc_high.stdout)
 
 
 def test_cli_diff_supports_finding_suppressions() -> None:
@@ -433,6 +524,26 @@ def test_cli_report_outputs_html() -> None:
     assert proc.returncode == 0, proc.stderr
     assert "<html" in proc.stdout
     assert "CSP Doctor Report" in proc.stdout
+
+
+def test_cli_report_fail_on_thresholds() -> None:
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "report",
+            "--csp",
+            "default-src 'self'",
+            "--fail-on",
+            "medium",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 1
+    assert "<html" in proc.stdout
 
 
 def test_cli_report_writes_file(tmp_path) -> None:

@@ -57,6 +57,7 @@ def main() -> None:
     )
     _add_profile_arg(analyze_parser)
     _add_suppression_args(analyze_parser)
+    _add_fail_on_arg(analyze_parser)
 
     rollout_parser = subparsers.add_parser(
         "rollout", help="Generate a CSP rollout plan"
@@ -98,6 +99,7 @@ def main() -> None:
     )
     _add_profile_arg(report_parser)
     _add_suppression_args(report_parser)
+    _add_fail_on_arg(report_parser)
 
     schema_parser = subparsers.add_parser(
         "schema",
@@ -154,6 +156,7 @@ def main() -> None:
     )
     _add_profile_arg(diff_parser)
     _add_suppression_args(diff_parser)
+    _add_fail_on_arg(diff_parser)
 
     report_only_parser = subparsers.add_parser(
         "report-only", help="Generate a Report-Only CSP header"
@@ -216,6 +219,7 @@ def main() -> None:
                 "findings": [asdict(finding) for finding in findings],
             }
             print(json.dumps(payload, indent=2))
+            _enforce_fail_on_findings(args.fail_on, findings)
             return
         if args.format == "sarif":
             sarif_payload = _build_sarif_report(
@@ -224,6 +228,7 @@ def main() -> None:
                 findings=findings,
             )
             print(json.dumps(sarif_payload, indent=2))
+            _enforce_fail_on_findings(args.fail_on, findings)
             return
         _print_analysis(
             analysis_result.directives,
@@ -232,6 +237,7 @@ def main() -> None:
             color_preset=args.color_preset,
             suppressed_count=suppressed_count,
         )
+        _enforce_fail_on_findings(args.fail_on, findings)
         return
 
     if args.command == "rollout":
@@ -267,6 +273,7 @@ def main() -> None:
             _write_output_file(cast(Path, args.output), html)
         else:
             print(html)
+        _enforce_fail_on_findings(args.fail_on, findings)
         return
 
     if args.command == "diff":
@@ -318,12 +325,14 @@ def main() -> None:
                 "severity_changes": diff_result.severity_changes,
             }
             print(json.dumps(payload, indent=2))
+            _enforce_fail_on_diff(args.fail_on, diff_result)
             return
         _print_diff(
             diff_result,
             color=_should_color(args.color),
             color_preset=args.color_preset,
         )
+        _enforce_fail_on_diff(args.fail_on, diff_result)
         return
 
     if args.command == "report-only":
@@ -392,6 +401,18 @@ def _add_suppression_args(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_fail_on_arg(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--fail-on",
+        choices=["none", "low", "medium", "high"],
+        default="none",
+        help=(
+            "Exit non-zero if findings at/above this severity are present. "
+            "For diff: only considers added findings and severity escalations."
+        ),
+    )
+
+
 def _load_suppressions(args: argparse.Namespace) -> set[str]:
     suppressions: set[str] = set()
 
@@ -452,6 +473,72 @@ def _apply_suppressions_to_diff(diff: DiffResult, suppressions: set[str]) -> Dif
         removed_findings=removed,
         severity_changes=severity_changes,
     )
+
+
+def _severity_rank(value: str) -> int:
+    ranks = {"low": 1, "medium": 2, "high": 3}
+    return ranks.get(value, 0)
+
+
+def _fail_on_rank(value: str) -> int:
+    if value == "none":
+        return 99
+    return _severity_rank(value)
+
+
+def _enforce_fail_on_findings(fail_on: str, findings: list[Finding]) -> None:
+    threshold = _fail_on_rank(fail_on)
+    if threshold >= 90:
+        return
+
+    violating = [finding for finding in findings if _severity_rank(finding.severity) >= threshold]
+    if not violating:
+        return
+
+    print(
+        f"Failing (--fail-on {fail_on}): {len(violating)} finding(s) at/above threshold.",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
+
+
+def _enforce_fail_on_diff(fail_on: str, diff: DiffResult) -> None:
+    threshold = _fail_on_rank(fail_on)
+    if threshold >= 90:
+        return
+
+    added = [
+        finding
+        for finding in diff.added_findings
+        if _severity_rank(finding.severity) >= threshold
+    ]
+
+    escalations: list[dict[str, str]] = []
+    for item in diff.severity_changes:
+        before = item.get("from")
+        after = item.get("to")
+        if not before or not after:
+            continue
+        before_rank = _severity_rank(before)
+        after_rank = _severity_rank(after)
+        if after_rank <= before_rank:
+            continue
+        if after_rank < threshold:
+            continue
+        escalations.append(item)
+
+    if not added and not escalations:
+        return
+
+    print(
+        (
+            f"Failing (--fail-on {fail_on}): "
+            f"{len(added)} added finding(s) and {len(escalations)} severity escalation(s) "
+            "at/above threshold."
+        ),
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
 
 
 def _get_profile(args: argparse.Namespace) -> RiskProfile:
