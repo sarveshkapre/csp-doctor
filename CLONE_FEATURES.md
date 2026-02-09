@@ -11,16 +11,22 @@
 - Selected: Finding suppressions (`--suppress`, `--suppress-file`). Score: impact high, effort medium, risk low, confidence high.
 - Selected: Duplicate-directive warning findings. Score: impact medium, effort low, risk low, confidence high.
 
+## Session Prioritization (cycle 3 - 2026-02-09)
+- Selected: Add `--fail-on` severity thresholds for CI gating on `analyze`/`diff`/`report`. Score: impact high, effort low, risk low, confidence high.
+- Selected: Add `--output` for `analyze`/`diff` machine outputs (JSON/SARIF) to mirror `report --output`. Score: impact high, effort low, risk low, confidence high.
+- Selected: Add CI pipeline integration snippets beyond GitHub Actions. Score: impact medium, effort low, risk low, confidence high.
+- Selected: Document a suppression file format and ship a starter template. Score: impact medium, effort low, risk low, confidence high.
+
 ## Candidate Features To Do
 - [ ] P2: Add optional PDF export for HTML reports.
-- [ ] P2: Add `--output` for `analyze`/`diff` machine outputs (JSON/SARIF) to mirror `report --output`.
-- [ ] P2: Add pipeline integration snippets for common CI systems beyond GitHub Actions (GitLab CI, CircleCI, etc.).
-- [ ] P3: Add `--fail-on` severity threshold to make CI gating ergonomic.
 - [ ] P3: Add `explain` surface for finding keys (e.g. `csp-doctor explain missing-reporting`).
-- [ ] P3: Document and template a suppression file format (`csp-doctor.suppressions`).
 - [ ] P3: Add baseline snapshots with environment metadata (staging/prod) for long-lived tracking.
 
 ## Implemented
+- [x] 2026-02-09: Add `--fail-on` severity thresholds for CI gating on `analyze`, `diff`, and `report`. Evidence: `src/csp_doctor/cli.py`, `tests/test_cli.py`, `README.md`.
+- [x] 2026-02-09: Add `--output` for `analyze` (JSON/SARIF) and `diff` (JSON) to write artifacts without shell redirection. Evidence: `src/csp_doctor/cli.py`, `tests/test_cli.py`, `README.md`.
+- [x] 2026-02-09: Add CI integration snippets beyond GitHub Actions. Evidence: `docs/CI.md`, `docs/ROADMAP.md`, `README.md`.
+- [x] 2026-02-09: Add a suppression file template. Evidence: `docs/csp-doctor.suppressions.example`, `README.md`.
 - [x] 2026-02-09: Fix GitHub Actions secret scan failures by fetching full git history (`actions/checkout fetch-depth: 0`). Evidence: `.github/workflows/ci.yml`, CI root-cause log from run `#21557309835`.
 - [x] 2026-02-09: Expand CSP analysis coverage with `missing-form-action` detection. Evidence: `src/csp_doctor/core.py`, `tests/test_core.py`.
 - [x] 2026-02-09: Add `analyze --format sarif` output for security pipeline interoperability. Evidence: `src/csp_doctor/cli.py`, `tests/test_cli.py`, smoke file `/tmp/csp-doctor.sarif`.

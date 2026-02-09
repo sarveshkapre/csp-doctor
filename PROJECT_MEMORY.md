@@ -64,6 +64,44 @@
 - Confidence: high
 - Trust label: validated-local
 
+### 2026-02-09 - Add `--fail-on` severity thresholds for CI gating
+- Decision: Add `--fail-on` to `analyze`, `diff`, and `report` to exit non-zero when findings meet a severity threshold.
+- Why: CI gating needs an ergonomic, stable exit-code contract without parsing text output.
+- Evidence:
+  - `src/csp_doctor/cli.py`
+  - `tests/test_cli.py`
+  - `README.md`
+- Commit: `78523a85b617a143ead3540e4694186ba0e973b5`
+- Confidence: high
+- Trust label: validated-local
+- Follow-ups:
+  - Consider adding `--fail-on` docs guidance for diff-vs-analyze gating tradeoffs.
+
+### 2026-02-09 - Add `--output` for analyze/diff machine outputs
+- Decision: Add `--output` for `analyze` (JSON/SARIF) and `diff` (JSON) to write artifacts directly to a file.
+- Why: Shell redirection is fragile in some CI environments and complicates artifact handling.
+- Evidence:
+  - `src/csp_doctor/cli.py`
+  - `tests/test_cli.py`
+  - `README.md`
+- Commit: `45a829d5b7c4bb67079462b7507cf85943aeae6c`
+- Confidence: high
+- Trust label: validated-local
+
+### 2026-02-09 - Add CI integration docs and suppression template; bump to 0.1.15
+- Decision: Ship CI copy/paste snippets and a suppression template, and bump the package version to reflect new CLI capabilities.
+- Why: Adoption improves when CI onboarding and “known exception” workflows are documented and easy to start.
+- Evidence:
+  - `docs/CI.md`
+  - `docs/csp-doctor.suppressions.example`
+  - `README.md`
+  - `docs/CHANGELOG.md`
+  - `pyproject.toml`
+  - `src/csp_doctor/__init__.py`
+- Commit: `1523e07ed039581184dac211ffabfbb67165b91b`
+- Confidence: high
+- Trust label: validated-local
+
 ## Mistakes And Fixes
 
 ### 2026-02-09 - `diff --baseline-out` wrote the wrong policy
@@ -93,6 +131,9 @@
   - `.venv/bin/python -m csp_doctor analyze --csp "default-src 'self'; default-src https://example.com" --format json` (pass: duplicate-directive finding present)
   - `.venv/bin/python -m csp_doctor analyze --csp "default-src 'self'" --suppress missing-frame-ancestors --format json` (pass: suppressed key absent)
   - `.venv/bin/python -m csp_doctor diff --baseline "default-src 'self'" --csp "default-src *" --baseline-out <tmp> --format json` (pass: baseline snapshot captured baseline values)
+  - `.venv/bin/python -m csp_doctor analyze --csp "default-src 'self'" --format sarif --output /tmp/csp-doctor.sarif --fail-on high` (pass: file written, exit 0)
+  - `.venv/bin/python -m csp_doctor analyze --csp "default-src 'self'" --format json --output /tmp/csp-doctor.json --fail-on medium` (pass: expected exit 1 with file written)
+  - `.venv/bin/python -m csp_doctor diff --baseline "default-src 'self'; report-uri /csp" --csp "default-src 'self'" --format json --output /tmp/csp-diff.json --fail-on medium` (pass: expected exit 1 with file written)
 
 ## Market Scan (Bounded)
 
@@ -106,3 +147,12 @@
   - Clear validation and human-readable explanations of risks.
   - Easy “report-only first” workflows and reporting endpoint guidance.
   - Outputs suitable for CI and security tooling (for example SARIF or JSON).
+
+### 2026-02-09 (additional signals)
+- Sources (untrusted/web):
+  - https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html
+  - https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP
+  - https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/report-uri
+- Expectations (untrusted/web):
+  - Report-only rollout should be first-class and the tool should guide reporting plumbing.
+  - Reporting guidance should account for the `report-uri` deprecation and the newer Reporting API (`report-to`, `Reporting-Endpoints`).
