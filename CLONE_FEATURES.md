@@ -6,6 +6,11 @@
 - Test and build failures
 - Gaps found during codebase exploration
 
+## Session Prioritization (2026-02-09)
+- Selected: Fix `diff --baseline-out` baseline snapshot semantics. Score: impact high, effort low, risk low, confidence high.
+- Selected: Finding suppressions (`--suppress`, `--suppress-file`). Score: impact high, effort medium, risk low, confidence high.
+- Selected: Duplicate-directive warning findings. Score: impact medium, effort low, risk low, confidence high.
+
 ## Candidate Features To Do
 - [ ] P2: Add optional PDF export for HTML reports.
 - [ ] P2: Add `--output` for `analyze`/`diff` machine outputs (JSON/SARIF) to mirror `report --output`.
