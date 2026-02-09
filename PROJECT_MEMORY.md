@@ -102,6 +102,41 @@
 - Confidence: high
 - Trust label: validated-local
 
+### 2026-02-09 - Add `explain` command for finding keys
+- Decision: Add `csp-doctor explain <key>` (plus `--list` and `--format json`) to provide a stable “what does this finding mean?” surface.
+- Why: Finding keys are machine-friendly; teams need an ergonomic way to understand and triage a specific key without digging through code.
+- Evidence:
+  - `src/csp_doctor/cli.py`
+  - `tests/test_cli.py`
+  - `README.md`
+- Commit: `9dde069a565f2ce27f74b040a5db6ae1689434bd`
+- Confidence: high
+- Trust label: trusted
+
+### 2026-02-09 - Add environment metadata to baseline snapshots
+- Decision: Allow baseline JSON snapshots to include an optional `environment` label (staging/prod) and support enforcing it during `diff` via `--baseline-env`.
+- Why: Long-lived baselines are easy to mix up; environment labels prevent comparing the wrong baseline and reduce rollout mistakes.
+- Evidence:
+  - `src/csp_doctor/core.py`
+  - `src/csp_doctor/cli.py`
+  - `tests/test_cli.py`
+  - `README.md`
+- Commit: `d7e6acdf7936cfec243d7e5ae2a27af276351854`
+- Confidence: medium
+- Trust label: trusted
+
+### 2026-02-09 - Add optional PDF export for HTML reports
+- Decision: Support `report --format pdf` via an opt-in dependency extra (`.[pdf]`) while keeping default installs lightweight.
+- Why: PDF is a common artifact format for security reviews, but bundling a renderer by default would increase install size and platform complexity.
+- Evidence:
+  - `src/csp_doctor/cli.py`
+  - `tests/test_cli.py`
+  - `pyproject.toml`
+  - `README.md`
+- Commit: `7cf6041f013d0ecd28ce05cd2df829feb93bcc40`
+- Confidence: medium
+- Trust label: trusted
+
 ## Mistakes And Fixes
 
 ### 2026-02-09 - `diff --baseline-out` wrote the wrong policy
@@ -128,6 +163,7 @@
 - `.venv/bin/python -m build` (pass)
 - `gh run watch 21813632527 --exit-status` (pass)
 - `gh run watch 21827657646 --exit-status` (pass)
+- `gh run watch 21844807730 --exit-status` (pass)
 - Smoke:
   - `.venv/bin/python -m csp_doctor analyze --csp "default-src 'self'; default-src https://example.com" --format json` (pass: duplicate-directive finding present)
   - `.venv/bin/python -m csp_doctor analyze --csp "default-src 'self'" --suppress missing-frame-ancestors --format json` (pass: suppressed key absent)
@@ -135,6 +171,11 @@
   - `.venv/bin/python -m csp_doctor analyze --csp "default-src 'self'" --format sarif --output /tmp/csp-doctor.sarif --fail-on high` (pass: file written, exit 0)
   - `.venv/bin/python -m csp_doctor analyze --csp "default-src 'self'" --format json --output /tmp/csp-doctor.json --fail-on medium` (pass: expected exit 1 with file written)
   - `.venv/bin/python -m csp_doctor diff --baseline "default-src 'self'; report-uri /csp" --csp "default-src 'self'" --format json --output /tmp/csp-diff.json --fail-on medium` (pass: expected exit 1 with file written)
+  - `.venv/bin/python -m csp_doctor explain missing-reporting --format json` (pass)
+  - `.venv/bin/python -m csp_doctor diff --baseline "default-src 'self'" --csp "default-src 'self'" --baseline-env staging --baseline-out /tmp/csp-baseline-staging.json --format json` (pass: snapshot includes environment)
+  - `.venv/bin/python -m csp_doctor report --csp "default-src 'self'" --output /tmp/csp-report.html` (pass: file written)
+  - `.venv/bin/pip install -e ".[pdf]"` (pass)
+  - `.venv/bin/python -m csp_doctor report --csp "default-src 'self'" --format pdf --output /tmp/csp-report.pdf` (pass: PDF written)
 
 ## Market Scan (Bounded)
 

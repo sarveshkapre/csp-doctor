@@ -44,7 +44,7 @@ Rationale: minimal dependencies, easy to audit, fast to run locally.
 - Add HTML report templates (classic, glass, minimal).
 
 ## Next
-- Add report export to PDF (optional).
+- Optional import path for CSP violation report samples to aid rollout tuning.
 
 ## Risks
 - CSP semantics are nuanced and browser-specific.

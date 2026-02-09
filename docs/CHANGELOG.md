@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## v0.1.16 - 2026-02-09
+- Add optional PDF export for `report` output (`report --format pdf --output report.pdf`) via an optional dependency extra (`.[pdf]`).
+- Add `explain` command for finding keys (`csp-doctor explain <key>` and `csp-doctor explain --list`).
+- Add baseline snapshot environment metadata and mismatch enforcement (`diff --baseline-env ...`).
+
 ## v0.1.15 - 2026-02-09
 - Add `--fail-on` severity thresholds for CI gating on `analyze`, `diff`, and `report`.
 - Add `--output` for `analyze` (JSON/SARIF) and `diff` (JSON) to write artifacts without shell redirection.

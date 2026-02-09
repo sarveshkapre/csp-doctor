@@ -11,6 +11,6 @@
 - Release: `make release`
 
 ## Next 3 improvements
-1. Add report export to PDF (optional).
-2. Add `explain` surface for finding keys (e.g. `csp-doctor explain missing-reporting`).
-3. Add baseline snapshots with environment metadata (staging/prod) for long-lived tracking.
+1. Optional import path for CSP violation report samples to aid rollout tuning.
+2. Print stylesheet / pagination improvements for HTML reports (for better manual "Print to PDF").
+3. Add a `make security` target (bandit + pip-audit) to match CI locally.

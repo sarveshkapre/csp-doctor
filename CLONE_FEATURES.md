@@ -17,12 +17,21 @@
 - Selected: Add CI pipeline integration snippets beyond GitHub Actions. Score: impact medium, effort low, risk low, confidence high.
 - Selected: Document a suppression file format and ship a starter template. Score: impact medium, effort low, risk low, confidence high.
 
+## Session Prioritization (cycle 5 - 2026-02-09)
+- Selected: Add optional PDF export for `report` output (`--format pdf`). Score: impact high, effort medium, strategic fit high, differentiation medium, risk medium, confidence medium.
+- Selected: Add `explain` command for finding keys (with JSON/text output and `--list`). Score: impact high, effort low, strategic fit high, differentiation medium, risk low, confidence high.
+- Selected: Add baseline snapshot environment metadata (staging/prod tracking) with optional mismatch enforcement in `diff`. Score: impact medium, effort medium, strategic fit high, differentiation low, risk low, confidence medium.
+
 ## Candidate Features To Do
-- [ ] P2: Add optional PDF export for HTML reports.
-- [ ] P3: Add `explain` surface for finding keys (e.g. `csp-doctor explain missing-reporting`).
-- [ ] P3: Add baseline snapshots with environment metadata (staging/prod) for long-lived tracking.
+- [ ] P2: Add a `make security` target (bandit + pip-audit) to match CI locally.
+- [ ] P3: Add a print stylesheet / pagination improvements for HTML reports (for better manual "Print to PDF").
+- [ ] P3: Add optional import path for CSP violation report samples to aid rollout tuning.
+- [ ] P3: Add `report --format json` to export directives/findings in a single artifact aligned with HTML report.
 
 ## Implemented
+- [x] 2026-02-09: Add `explain` command for finding keys (`csp-doctor explain <key>`, `--list`, `--format json`). Evidence: `src/csp_doctor/cli.py`, `tests/test_cli.py`, `README.md`.
+- [x] 2026-02-09: Add baseline snapshot environment metadata and mismatch enforcement (`diff --baseline-env`). Evidence: `src/csp_doctor/core.py`, `src/csp_doctor/cli.py`, `tests/test_cli.py`, `README.md`.
+- [x] 2026-02-09: Add optional PDF export for `report` output (`report --format pdf --output ...`) via optional dependency extra. Evidence: `src/csp_doctor/cli.py`, `tests/test_cli.py`, `pyproject.toml`, `README.md`.
 - [x] 2026-02-09: Add `--fail-on` severity thresholds for CI gating on `analyze`, `diff`, and `report`. Evidence: `src/csp_doctor/cli.py`, `tests/test_cli.py`, `README.md`.
 - [x] 2026-02-09: Add `--output` for `analyze` (JSON/SARIF) and `diff` (JSON) to write artifacts without shell redirection. Evidence: `src/csp_doctor/cli.py`, `tests/test_cli.py`, `README.md`.
 - [x] 2026-02-09: Add CI integration snippets beyond GitHub Actions. Evidence: `docs/CI.md`, `docs/ROADMAP.md`, `README.md`.
@@ -50,6 +59,7 @@
 - gitleaks pull-request scans require `GITHUB_TOKEN` in action environment; otherwise scans fail even when code quality checks pass.
 - CSP diff baselines must bind to a risk profile to keep comparisons semantically stable across strictness modes.
 - Duplicate CSP directives should follow browser-first semantics (first directive wins) to avoid false confidence from overwritten parser state.
+- Optional PDF export is best shipped as an opt-in dependency extra to keep the default install lightweight; error paths should be explicit and actionable when the extra isn't installed.
 - (untrusted/web) Comparable tools frequently surface: policy evaluation, reporting endpoint guidance, and rollout workflow helpers.
 
 ## Notes
