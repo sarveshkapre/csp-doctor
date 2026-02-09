@@ -43,6 +43,12 @@ Suppress known-acceptable findings:
 csp-doctor analyze --csp "default-src 'self'" --suppress missing-reporting
 ```
 
+Suppress findings via a file:
+
+```bash
+csp-doctor analyze --csp "default-src 'self'" --suppress-file docs/csp-doctor.suppressions.example
+```
+
 Generate a rollout plan:
 
 ```bash
@@ -64,12 +70,18 @@ csp-doctor analyze --csp "default-src 'self'" --color-preset vivid
 Export findings as SARIF for security tooling:
 
 ```bash
-csp-doctor analyze --csp "default-src 'self'" --format sarif > csp-doctor.sarif
+csp-doctor analyze --csp "default-src 'self'" --format sarif --output csp-doctor.sarif
 ```
 
 Publish SARIF to GitHub Code Scanning:
 
 See `docs/CODE_SCANNING.md` for a copy/paste workflow snippet.
+
+Gate CI on finding severity:
+
+```bash
+csp-doctor analyze --csp "default-src 'self'" --format sarif --output csp-doctor.sarif --fail-on medium
+```
 
 Export an HTML report:
 

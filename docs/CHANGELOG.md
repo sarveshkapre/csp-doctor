@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v0.1.15 - 2026-02-09
+- Add `--fail-on` severity thresholds for CI gating on `analyze`, `diff`, and `report`.
+- Add `--output` for `analyze` (JSON/SARIF) and `diff` (JSON) to write artifacts without shell redirection.
+- Add CI integration snippets beyond GitHub Actions (`docs/CI.md`).
+- Add a suppression file template (`docs/csp-doctor.suppressions.example`).
+
 ## v0.1.14 - 2026-02-09
 - Add configurable finding suppressions (`--suppress`, `--suppress-file`) for `analyze`, `report`, and `diff`.
 - Add duplicate-directive warning findings while preserving browser-first parsing (first directive wins).

@@ -12,5 +12,5 @@
 
 ## Next 3 improvements
 1. Add report export to PDF (optional).
-2. Add pipeline integration snippets for CI systems beyond GitHub Actions.
-3. Add `--fail-on` severity thresholds for CI gating.
+2. Add `explain` surface for finding keys (e.g. `csp-doctor explain missing-reporting`).
+3. Add baseline snapshots with environment metadata (staging/prod) for long-lived tracking.

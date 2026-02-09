@@ -1,0 +1,15 @@
+# csp-doctor suppressions file
+#
+# Format:
+# - One finding key per line
+# - Blank lines are ignored
+# - Lines may include comments after '#'
+#
+# Usage:
+#   csp-doctor analyze --csp "default-src 'self'" --suppress-file docs/csp-doctor.suppressions.example --format json
+
+# Example: ignore missing reporting while you are still setting up collection
+missing-reporting
+
+# Example: ignore clickjacking finding for internal tools that are intentionally embeddable
+# missing-frame-ancestors
