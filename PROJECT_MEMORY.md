@@ -164,6 +164,7 @@
 - `gh run watch 21813632527 --exit-status` (pass)
 - `gh run watch 21827657646 --exit-status` (pass)
 - `gh run watch 21844807730 --exit-status` (pass)
+- `gh run watch 21844920673 --exit-status` (pass)
 - Smoke:
   - `.venv/bin/python -m csp_doctor analyze --csp "default-src 'self'; default-src https://example.com" --format json` (pass: duplicate-directive finding present)
   - `.venv/bin/python -m csp_doctor analyze --csp "default-src 'self'" --suppress missing-frame-ancestors --format json` (pass: suppressed key absent)
