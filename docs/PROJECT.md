@@ -12,5 +12,5 @@
 
 ## Next 3 improvements
 1. Add report export to PDF (optional).
-2. Add configurable finding suppressions/waivers for known-acceptable exceptions.
-3. Add duplicate-directive warnings (while preserving first-directive browser semantics).
+2. Add pipeline integration snippets for CI systems beyond GitHub Actions.
+3. Add `--fail-on` severity thresholds for CI gating.

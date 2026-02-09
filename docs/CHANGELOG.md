@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v0.1.14 - 2026-02-09
+- Add configurable finding suppressions (`--suppress`, `--suppress-file`) for `analyze`, `report`, and `diff`.
+- Add duplicate-directive warning findings while preserving browser-first parsing (first directive wins).
+- Fix `diff --baseline-out` to snapshot the baseline policy used for the diff (not the proposed policy).
+- Make `make check` use `.venv/bin/python` automatically when a local venv exists.
+
 ## v0.1.13 - 2026-02-09
 - Add configurable analysis risk profiles (`strict`, `recommended`, `legacy`) for `analyze`, `report`, and `diff`.
 - Persist baseline snapshot `profile` metadata and fail closed on profile mismatches when diffing from JSON snapshots.

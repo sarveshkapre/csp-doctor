@@ -37,6 +37,12 @@ Tune findings for your rollout stage:
 csp-doctor analyze --csp "default-src 'self'; script-src 'self'" --profile strict
 ```
 
+Suppress known-acceptable findings:
+
+```bash
+csp-doctor analyze --csp "default-src 'self'" --suppress missing-reporting
+```
+
 Generate a rollout plan:
 
 ```bash
