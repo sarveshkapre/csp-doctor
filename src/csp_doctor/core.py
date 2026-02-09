@@ -149,6 +149,19 @@ def analyze_policy(policy: str) -> AnalysisResult:
             )
         )
 
+    if "form-action" not in directives:
+        findings.append(
+            Finding(
+                key="missing-form-action",
+                severity="medium",
+                title="Missing form-action",
+                detail=(
+                    "Set form-action to trusted origins (for example 'self') to reduce form "
+                    "post hijacking risk."
+                ),
+            )
+        )
+
     if "upgrade-insecure-requests" not in directives:
         findings.append(
             Finding(

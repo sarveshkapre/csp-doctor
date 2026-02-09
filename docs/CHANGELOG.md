@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v0.1.12 - 2026-02-09
+- Fix GitHub Actions secret scan reliability by fetching full git history in CI checkout.
+- Expand analyzer coverage with a `missing-form-action` finding.
+- Add `analyze --format sarif` for security pipeline interoperability.
+- Harden diff baseline JSON loading with strict shape/type validation.
+
 ## v0.1.11 - 2026-02-01
 - Add report templates (classic, glass, minimal) for HTML export.
 

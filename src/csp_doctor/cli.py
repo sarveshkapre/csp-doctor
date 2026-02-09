@@ -49,9 +49,9 @@ def main() -> None:
     )
     analyze_parser.add_argument(
         "--format",
-        choices=["text", "json"],
+        choices=["text", "json", "sarif"],
         default="text",
-        help="Output format",
+        help="Output format (text/json/sarif)",
     )
 
     rollout_parser = subparsers.add_parser(
@@ -203,6 +203,14 @@ def main() -> None:
                 "findings": [asdict(finding) for finding in analysis_result.findings],
             }
             print(json.dumps(payload, indent=2))
+            return
+        if args.format == "sarif":
+            sarif_payload = _build_sarif_report(
+                policy=policy,
+                directives=analysis_result.directives,
+                findings=analysis_result.findings,
+            )
+            print(json.dumps(sarif_payload, indent=2))
             return
         _print_analysis(
             analysis_result.directives,
@@ -376,25 +384,12 @@ def _load_baseline_snapshot(args: argparse.Namespace) -> BaselineSnapshot | None
         print(f"Unsupported baseline schemaVersion: {schema_version}", file=sys.stderr)
         raise SystemExit(2)
 
-    directives = payload.get("directives")
-    findings = payload.get("findings")
-    if not isinstance(directives, dict) or not isinstance(findings, list):
-        print("Baseline JSON must include directives and findings", file=sys.stderr)
-        raise SystemExit(2)
-
-    snapshot_findings: list[Finding] = []
-    for item in findings:
-        if not isinstance(item, dict):
-            continue
-        snapshot_findings.append(
-            Finding(
-                key=str(item.get("key", "")),
-                severity=str(item.get("severity", "")),
-                title=str(item.get("title", "")),
-                detail=str(item.get("detail", "")),
-                evidence=item.get("evidence"),
-            )
-        )
+    try:
+        directives = _validate_baseline_directives(payload.get("directives"))
+        snapshot_findings = _validate_baseline_findings(payload.get("findings"))
+    except ValueError as exc:
+        print(f"Invalid baseline snapshot: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
 
     return BaselineSnapshot(directives=directives, findings=snapshot_findings)
 
@@ -411,6 +406,69 @@ def _write_baseline_snapshot(path: Path, policy: str) -> None:
     except OSError as exc:
         print(f"Failed to write {path}: {exc}", file=sys.stderr)
         raise SystemExit(1) from exc
+
+
+def _validate_baseline_directives(value: object) -> dict[str, list[str]]:
+    if not isinstance(value, dict):
+        raise ValueError("directives must be an object")
+
+    directives: dict[str, list[str]] = {}
+    for key, sources in value.items():
+        if not isinstance(key, str):
+            raise ValueError("directive names must be strings")
+        if not isinstance(sources, list) or not all(
+            isinstance(source, str) for source in sources
+        ):
+            raise ValueError(f"directive '{key}' must contain a list of strings")
+        directives[key] = list(sources)
+
+    return directives
+
+
+def _validate_baseline_findings(value: object) -> list[Finding]:
+    if not isinstance(value, list):
+        raise ValueError("findings must be an array")
+
+    findings: list[Finding] = []
+    allowed_severities = {"high", "medium", "low"}
+    required_fields = ("key", "severity", "title", "detail")
+
+    for index, item in enumerate(value):
+        if not isinstance(item, dict):
+            raise ValueError(f"finding at index {index} must be an object")
+
+        missing = [field for field in required_fields if field not in item]
+        if missing:
+            raise ValueError(
+                f"finding at index {index} is missing required fields: {', '.join(missing)}"
+            )
+
+        key = item["key"]
+        severity = item["severity"]
+        title = item["title"]
+        detail = item["detail"]
+        evidence = item.get("evidence")
+
+        if not all(isinstance(field, str) for field in (key, severity, title, detail)):
+            raise ValueError(f"finding at index {index} has non-string required fields")
+        if severity not in allowed_severities:
+            raise ValueError(
+                f"finding at index {index} has unsupported severity '{severity}'"
+            )
+        if evidence is not None and not isinstance(evidence, str):
+            raise ValueError(f"finding at index {index} has non-string evidence")
+
+        findings.append(
+            Finding(
+                key=key,
+                severity=severity,
+                title=title,
+                detail=detail,
+                evidence=evidence,
+            )
+        )
+
+    return findings
 
 
 def _write_output_file(path: Path, content: str) -> None:
@@ -468,6 +526,85 @@ def _print_analysis(
         )
         evidence = f" ({finding.evidence})" if finding.evidence else ""
         print(f"- [{label}] {finding.title}{evidence}\n  {finding.detail}")
+
+
+def _build_sarif_report(
+    *,
+    policy: str,
+    directives: dict[str, list[str]],
+    findings: list[Finding],
+) -> dict[str, object]:
+    rules_by_id: dict[str, dict[str, object]] = {}
+    results: list[dict[str, object]] = []
+
+    for finding in findings:
+        rule_id = f"csp-doctor/{finding.key}"
+        if rule_id not in rules_by_id:
+            rules_by_id[rule_id] = {
+                "id": rule_id,
+                "name": finding.title,
+                "shortDescription": {"text": finding.title},
+                "fullDescription": {"text": finding.detail},
+                "help": {"text": finding.detail},
+                "properties": {
+                    "security-severity": _sarif_security_score(finding.severity),
+                    "precision": "very-high",
+                    "tags": ["security", "csp", finding.severity],
+                },
+            }
+
+        message = finding.detail
+        if finding.evidence:
+            message = f"{message} Evidence: {finding.evidence}"
+
+        results.append(
+            {
+                "ruleId": rule_id,
+                "level": _sarif_level_for_severity(finding.severity),
+                "message": {"text": message},
+                "properties": {"severity": finding.severity},
+            }
+        )
+
+    return {
+        "$schema": (
+            "https://json.schemastore.org/sarif-2.1.0.json"
+        ),
+        "version": "2.1.0",
+        "runs": [
+            {
+                "tool": {
+                    "driver": {
+                        "name": "csp-doctor",
+                        "informationUri": "https://github.com/sarveshkapre/csp-doctor",
+                        "rules": [rules_by_id[key] for key in sorted(rules_by_id)],
+                    }
+                },
+                "results": results,
+                "properties": {
+                    "policy": policy.strip(),
+                    "directiveCount": len(directives),
+                    "findingCount": len(findings),
+                },
+            }
+        ],
+    }
+
+
+def _sarif_level_for_severity(severity: str) -> str:
+    if severity == "high":
+        return "error"
+    if severity == "medium":
+        return "warning"
+    return "note"
+
+
+def _sarif_security_score(severity: str) -> str:
+    if severity == "high":
+        return "9.0"
+    if severity == "medium":
+        return "6.0"
+    return "3.0"
 
 
 def _print_rollout(plan: list[str]) -> None:

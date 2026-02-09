@@ -46,6 +46,29 @@ def test_cli_analyze_reads_stdin_flag() -> None:
     assert "default-src" in payload["directives"]
 
 
+def test_cli_analyze_outputs_sarif() -> None:
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "analyze",
+            "--csp",
+            "default-src 'self'",
+            "--format",
+            "sarif",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["version"] == "2.1.0"
+    assert payload["runs"][0]["tool"]["driver"]["name"] == "csp-doctor"
+    assert payload["runs"][0]["results"]
+
+
 def test_cli_diff_outputs_json() -> None:
     proc = subprocess.run(
         [
@@ -138,6 +161,75 @@ def test_cli_diff_rejects_unknown_schema_version(tmp_path) -> None:
     )
     assert proc.returncode == 2
     assert "schemaVersion" in proc.stderr
+
+
+def test_cli_diff_rejects_invalid_baseline_directives(tmp_path) -> None:
+    baseline_path = tmp_path / "baseline.json"
+    baseline_path.write_text(
+        json.dumps(
+            {
+                "schemaVersion": 1,
+                "directives": {"default-src": "'self'"},
+                "findings": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "diff",
+            "--baseline-json",
+            str(baseline_path),
+            "--csp",
+            "default-src 'self'",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 2
+    assert "Invalid baseline snapshot" in proc.stderr
+
+
+def test_cli_diff_rejects_invalid_baseline_findings(tmp_path) -> None:
+    baseline_path = tmp_path / "baseline.json"
+    baseline_path.write_text(
+        json.dumps(
+            {
+                "schemaVersion": 1,
+                "directives": {"default-src": ["'self'"]},
+                "findings": [
+                    {
+                        "key": "example",
+                        "severity": "critical",
+                        "title": "Title",
+                        "detail": "Detail",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "diff",
+            "--baseline-json",
+            str(baseline_path),
+            "--csp",
+            "default-src 'self'",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 2
+    assert "unsupported severity" in proc.stderr
 
 
 def test_cli_normalize_outputs_sorted_policy() -> None:

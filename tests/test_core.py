@@ -34,6 +34,11 @@ def test_analyze_policy_flags_missing_frame_ancestors():
     )
 
 
+def test_analyze_policy_flags_missing_form_action() -> None:
+    result = analyze_policy("default-src 'self'")
+    assert any(finding.key == "missing-form-action" for finding in result.findings)
+
+
 def test_analyze_policy_flags_missing_trusted_types() -> None:
     result = analyze_policy("default-src 'self'")
     assert any(
