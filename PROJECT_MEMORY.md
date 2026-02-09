@@ -73,6 +73,13 @@
 - Commit: `ae08f8a1489c83a4a7a734e31c72122e4a6360c6`
 - Trust label: validated-local
 
+### 2026-02-09 - CI SAST (bandit) failure due to `assert`
+- Root cause: Bandit flags `assert` usage in non-test code (B101), even when the assertion is “unreachable” in normal CLI flows.
+- Fix: Replace the assertion with explicit control flow that produces a non-optional baseline text.
+- Prevention rule: Avoid `assert` in runtime code paths; prefer explicit error handling or locally-scoped, non-optional variables.
+- Commit: `d1e7cd91bbdb6f1b1c026358a7a84a69057a1d27`
+- Trust label: validated-local
+
 ## Verification Evidence
 
 ### 2026-02-09
@@ -81,6 +88,7 @@
 - `.venv/bin/python -m mypy src` (pass)
 - `.venv/bin/python -m pytest` (pass)
 - `.venv/bin/python -m build` (pass)
+- `gh run watch 21813632527 --exit-status` (pass)
 - Smoke:
   - `.venv/bin/python -m csp_doctor analyze --csp "default-src 'self'; default-src https://example.com" --format json` (pass: duplicate-directive finding present)
   - `.venv/bin/python -m csp_doctor analyze --csp "default-src 'self'" --suppress missing-frame-ancestors --format json` (pass: suppressed key absent)
