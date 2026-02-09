@@ -85,3 +85,16 @@
   - `.venv/bin/python -m csp_doctor analyze --csp "default-src 'self'; default-src https://example.com" --format json` (pass: duplicate-directive finding present)
   - `.venv/bin/python -m csp_doctor analyze --csp "default-src 'self'" --suppress missing-frame-ancestors --format json` (pass: suppressed key absent)
   - `.venv/bin/python -m csp_doctor diff --baseline "default-src 'self'" --csp "default-src *" --baseline-out <tmp> --format json` (pass: baseline snapshot captured baseline values)
+
+## Market Scan (Bounded)
+
+### 2026-02-09
+- Sources (untrusted/web):
+  - https://csp-evaluator.withgoogle.com/
+  - https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP
+  - https://report-uri.com/home/generate
+  - https://securityheaders.com/
+- Expectations (untrusted/web):
+  - Clear validation and human-readable explanations of risks.
+  - Easy “report-only first” workflows and reporting endpoint guidance.
+  - Outputs suitable for CI and security tooling (for example SARIF or JSON).
