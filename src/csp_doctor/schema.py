@@ -4,11 +4,15 @@ from collections.abc import Mapping
 from typing import Any, Literal
 
 
-def get_schema(kind: Literal["analyze", "diff", "all"] = "all") -> Mapping[str, Any]:
+def get_schema(
+    kind: Literal["analyze", "diff", "report", "all"] = "all",
+) -> Mapping[str, Any]:
     if kind == "analyze":
         return ANALYZE_SCHEMA
     if kind == "diff":
         return DIFF_SCHEMA
+    if kind == "report":
+        return REPORT_SCHEMA
     return ALL_SCHEMA
 
 
@@ -104,6 +108,45 @@ DIFF_SCHEMA: dict[str, Any] = {
     ],
 }
 
+COUNTS_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "high": {"type": "integer", "minimum": 0},
+        "medium": {"type": "integer", "minimum": 0},
+        "low": {"type": "integer", "minimum": 0},
+    },
+    "required": ["high", "medium", "low"],
+}
+
+REPORT_SCHEMA: dict[str, Any] = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://example.invalid/csp-doctor/schema/report.json",
+    "title": "csp-doctor report --format json output",
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "policy": {"type": "string"},
+        "profile": {"type": "string"},
+        "theme": {"type": "string"},
+        "template": {"type": "string"},
+        "directives": DIRECTIVES_SCHEMA,
+        "findings": {"type": "array", "items": FINDING_SCHEMA},
+        "counts": COUNTS_SCHEMA,
+        "summary": {"type": "string"},
+    },
+    "required": [
+        "policy",
+        "profile",
+        "theme",
+        "template",
+        "directives",
+        "findings",
+        "counts",
+        "summary",
+    ],
+}
+
 ALL_SCHEMA: dict[str, Any] = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$id": "https://example.invalid/csp-doctor/schema/all.json",
@@ -113,7 +156,7 @@ ALL_SCHEMA: dict[str, Any] = {
     "properties": {
         "analyze": ANALYZE_SCHEMA,
         "diff": DIFF_SCHEMA,
+        "report": REPORT_SCHEMA,
     },
-    "required": ["analyze", "diff"],
+    "required": ["analyze", "diff", "report"],
 }
-

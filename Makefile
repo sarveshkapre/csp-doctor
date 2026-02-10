@@ -4,7 +4,7 @@ ifneq (,$(wildcard $(VENV_PYTHON)))
 PYTHON := $(VENV_PYTHON)
 endif
 
-.PHONY: setup dev test lint typecheck build check release
+.PHONY: setup dev test lint typecheck security build check release
 
 setup:
 	$(PYTHON) -m venv .venv
@@ -22,6 +22,10 @@ lint:
 
 typecheck:
 	$(PYTHON) -m mypy src
+
+security:
+	$(PYTHON) -m bandit -q -r src
+	$(PYTHON) -m pip_audit --cache-dir .pip-audit-cache --progress-spinner off
 
 build:
 	$(PYTHON) -m build

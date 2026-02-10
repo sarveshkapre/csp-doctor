@@ -16,6 +16,9 @@ csp-doctor diff --baseline-file baseline.txt --csp "default-src 'self'" --baseli
 
 # CI gating for a proposed policy
 csp-doctor diff --baseline-json baseline.json --csp "$PROPOSED_CSP" --format json --output csp-diff.json --fail-on medium
+
+# Optional: produce a single JSON artifact aligned with the HTML report
+csp-doctor report --csp "$PROPOSED_CSP" --format json --output csp-report.json
 ```
 
 If you prefer gating on the full set of findings (not just regressions), use `analyze`:

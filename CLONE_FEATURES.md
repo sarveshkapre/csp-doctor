@@ -29,18 +29,17 @@
 - Selected: Add `report --format json` (plus schema) to export directives/findings in a single machine-readable artifact aligned with HTML report. Score: impact medium, effort medium, strategic fit high, differentiation low, risk low, confidence medium.
 
 ## Candidate Features To Do
-- [ ] P1: Add optional CSP violation report import (file path) and summarize violations to aid rollout tuning.
-- [ ] P2: Add a `make security` target (bandit + pip-audit) to match CI locally.
-- [ ] P2: Improve HTML report print stylesheet/pagination for better manual "Print to PDF".
-- [ ] P2: Add `report --format json` (plus `schema --kind report`) to export directives/findings aligned with HTML report.
-- [ ] P3: Add JSON output for `violations` summaries (for CI artifact ingestion).
-- [ ] P3: Add a `rollout --violations-file ...` shortcut to embed violation summary into the rollout checklist output.
-- [ ] P3: Add docs/examples for violation report formats supported (legacy `report-uri` JSON and Reporting API JSON).
-- [ ] P4: Add `report --format json` example usage in `docs/CI.md` for artifacting.
+- [ ] P2: Optionally surface violation summaries in `report` output (HTML/JSON) to aid rollout triage.
+- [ ] P3: Expand `violations` parsing coverage with more real-world schema variants (while staying strict by default).
+- [ ] P3: Add a baseline update workflow for teams managing long-lived snapshots.
 - [ ] P4: Consider adding suppressed-count metadata to JSON/SARIF outputs once schemas support optional summary fields.
 - [ ] P4: Expand analyzer coverage for `frame-src`/`worker-src`/`manifest-src` parity checks (low risk, incremental).
 
 ## Implemented
+- [x] 2026-02-10: Summarize CSP violation reports via `csp-doctor violations` (text/JSON) and optionally embed summaries into `rollout` output (`--violations-file`). Evidence: `src/csp_doctor/violations.py`, `src/csp_doctor/cli.py`, `tests/test_cli.py`, `README.md`.
+- [x] 2026-02-10: Add `report --format json` and publish schema via `schema --kind report`. Evidence: `src/csp_doctor/cli.py`, `src/csp_doctor/schema.py`, `tests/test_cli.py`, `README.md`.
+- [x] 2026-02-10: Improve HTML report print stylesheet/pagination for better manual "Print to PDF". Evidence: `src/csp_doctor/cli.py`.
+- [x] 2026-02-10: Add `make security` target (bandit + pip-audit) to match CI locally, and align CI install to dev extras. Evidence: `Makefile`, `pyproject.toml`, `.github/workflows/ci.yml`.
 - [x] 2026-02-09: Add `explain` command for finding keys (`csp-doctor explain <key>`, `--list`, `--format json`). Evidence: `src/csp_doctor/cli.py`, `tests/test_cli.py`, `README.md`.
 - [x] 2026-02-09: Add baseline snapshot environment metadata and mismatch enforcement (`diff --baseline-env`). Evidence: `src/csp_doctor/core.py`, `src/csp_doctor/cli.py`, `tests/test_cli.py`, `README.md`.
 - [x] 2026-02-09: Add optional PDF export for `report` output (`report --format pdf --output ...`) via optional dependency extra. Evidence: `src/csp_doctor/cli.py`, `tests/test_cli.py`, `pyproject.toml`, `README.md`.

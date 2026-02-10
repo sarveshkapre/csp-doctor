@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v0.1.17 - 2026-02-10
+- Add `violations` command (text/JSON) to summarize CSP violation report samples, and support embedding that summary into `rollout` via `--violations-file`.
+- Add `report --format json` plus `schema --kind report` for a single machine-readable artifact aligned with the HTML report.
+- Add `make security` (bandit + pip-audit) and align CI dependencies with `.[dev]`.
+- Improve HTML report print stylesheet/pagination for better manual "Print to PDF".
+
 ## v0.1.16 - 2026-02-09
 - Add optional PDF export for `report` output (`report --format pdf --output report.pdf`) via an optional dependency extra (`.[pdf]`).
 - Add `explain` command for finding keys (`csp-doctor explain <key>` and `csp-doctor explain --list`).

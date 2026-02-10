@@ -101,6 +101,12 @@ Export an HTML report:
 csp-doctor report --csp "default-src 'self'" --output report.html
 ```
 
+Export a JSON report artifact:
+
+```bash
+csp-doctor report --csp "default-src 'self'" --format json --output report.json
+```
+
 Export a PDF report (optional dependency):
 
 ```bash

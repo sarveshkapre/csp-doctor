@@ -137,6 +137,41 @@
 - Confidence: medium
 - Trust label: trusted
 
+### 2026-02-10 - Summarize CSP violation reports to aid rollout tuning
+- Decision: Add a `violations` command (text/JSON) that summarizes CSP violation report samples, and add an optional `rollout --violations-file` path to embed that summary into rollout output.
+- Why: Teams need fast feedback loops during Report-Only rollout; violation summaries reduce triage time and make allowlist decisions more evidence-driven.
+- Evidence:
+  - `src/csp_doctor/violations.py`
+  - `src/csp_doctor/cli.py`
+  - `tests/test_cli.py`
+  - `README.md`
+- Commit: `e9f9e38e55afab0c39fcf04e8a98d159e7dbf8fd`
+- Confidence: medium
+- Trust label: validated-local
+
+### 2026-02-10 - Add JSON report format and publish schema
+- Decision: Add `report --format json` and publish its schema via `schema --kind report`.
+- Why: CI and security tooling often want a single machine-readable artifact aligned with the HTML report without needing to parse text or recompute analysis.
+- Evidence:
+  - `src/csp_doctor/cli.py`
+  - `src/csp_doctor/schema.py`
+  - `tests/test_cli.py`
+  - `README.md`
+- Commit: TBD
+- Confidence: medium
+- Trust label: validated-local
+
+### 2026-02-10 - Add local `make security` to match CI (bandit + pip-audit)
+- Decision: Add `make security` and include bandit/pip-audit in `.[dev]`, keeping CI aligned with the same dependency set.
+- Why: Local reproducibility reduces CI-only failures and makes security checks part of the default contributor workflow.
+- Evidence:
+  - `Makefile`
+  - `pyproject.toml`
+  - `.github/workflows/ci.yml`
+- Commit: TBD
+- Confidence: high
+- Trust label: validated-local
+
 ## Mistakes And Fixes
 
 ### 2026-02-09 - `diff --baseline-out` wrote the wrong policy
@@ -180,6 +215,16 @@
   - `.venv/bin/pip install -e ".[pdf]"` (pass)
   - `.venv/bin/python -m csp_doctor report --csp "default-src 'self'" --format pdf --output /tmp/csp-report.pdf` (pass: PDF written)
 
+### 2026-02-10
+- `gh auth status` (fail: token invalid in keyring; unable to query issues/runs)
+- `make check` (pass)
+- `.venv/bin/python -m csp_doctor violations --file <tmp> --format json` (pass)
+- `.venv/bin/python -m csp_doctor rollout --csp "default-src 'self'" --violations-file <tmp>` (pass)
+- `.venv/bin/python -m csp_doctor report --csp "default-src 'self'" --format json` (pass)
+- `.venv/bin/python -m csp_doctor schema --kind report` (pass)
+- `.venv/bin/python -m pip install -e ".[dev]"` (pass)
+- `make security` (pass: bandit ok; pip-audit ok with local package skipped)
+
 ## Market Scan (Bounded)
 
 ### 2026-02-09
@@ -201,3 +246,13 @@
 - Expectations (untrusted/web):
   - Report-only rollout should be first-class and the tool should guide reporting plumbing.
   - Reporting guidance should account for the `report-uri` deprecation and the newer Reporting API (`report-to`, `Reporting-Endpoints`).
+
+### 2026-02-10
+- Sources (untrusted/web):
+  - https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/report-uri
+  - https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/report-to
+  - https://owasp.org/index.php/OWASP_Secure_Headers_Project
+  - https://docs.report-uri.com/setup/csp/
+- Expectations (untrusted/web):
+  - Violation reporting needs to account for `report-uri` deprecation and the Reporting API (`report-to`, `Reporting-Endpoints`).
+  - Rollout workflows benefit from fast violation triage (top directives, top blocked origins) rather than only static policy linting.

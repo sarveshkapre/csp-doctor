@@ -10,6 +10,7 @@
 - Tests: `make test`
 - Lint: `make lint`
 - Typecheck: `make typecheck`
+- Security: `make security`
 - Build: `make build`
 - Quality gate: `make check`
 

@@ -727,6 +727,55 @@ def test_cli_report_writes_file(tmp_path) -> None:
     assert output_path.exists()
 
 
+def test_cli_report_outputs_json() -> None:
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "report",
+            "--csp",
+            "default-src 'self'",
+            "--format",
+            "json",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["policy"].startswith("default-src")
+    assert "directives" in payload
+    assert "findings" in payload
+    assert "counts" in payload
+
+
+def test_cli_report_writes_json_file(tmp_path) -> None:
+    output_path = tmp_path / "report.json"
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "report",
+            "--csp",
+            "default-src 'self'",
+            "--format",
+            "json",
+            "--output",
+            str(output_path),
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert proc.stdout.strip() == ""
+    payload = json.loads(output_path.read_text(encoding="utf-8"))
+    assert payload["policy"].startswith("default-src")
+
+
 def test_cli_report_pdf_requires_output() -> None:
     proc = subprocess.run(
         [

@@ -98,13 +98,13 @@ def main() -> None:
     report_parser.add_argument(
         "--output",
         type=Path,
-        help="Write HTML report to this file (defaults to stdout)",
+        help="Write report output (HTML/JSON) to this file (defaults to stdout)",
     )
     report_parser.add_argument(
         "--format",
-        choices=["html", "pdf"],
+        choices=["html", "pdf", "json"],
         default="html",
-        help="Output format (html/pdf)",
+        help="Output format (html/pdf/json)",
     )
     report_parser.add_argument(
         "--theme",
@@ -128,7 +128,7 @@ def main() -> None:
     )
     schema_parser.add_argument(
         "--kind",
-        choices=["all", "analyze", "diff"],
+        choices=["all", "analyze", "diff", "report"],
         default="all",
         help="Which schema to print",
     )
@@ -288,7 +288,7 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.command == "schema":
-        kind = cast(Literal["all", "analyze", "diff"], args.kind)
+        kind = cast(Literal["all", "analyze", "diff", "report"], args.kind)
         schema = get_schema(kind)
         print(json.dumps(schema, indent=2))
         return
@@ -373,21 +373,42 @@ def main() -> None:
         findings, _suppressed_count = _apply_suppressions(
             analysis_result.findings, suppressions
         )
-        html = _render_html_report(
-            policy=policy,
-            directives=analysis_result.directives,
-            findings=findings,
-            theme=cast(ThemeName, args.theme),
-            template=args.template,
-        )
         report_format = cast(str, args.format)
-        if report_format == "pdf":
+        if report_format == "json":
+            report_payload = _build_report_json(
+                policy=policy,
+                directives=analysis_result.directives,
+                findings=findings,
+                profile=profile,
+                theme=cast(ThemeName, args.theme),
+                template=args.template,
+            )
+            rendered = json.dumps(report_payload, indent=2) + "\n"
+            if args.output:
+                _write_output_file(cast(Path, args.output), rendered)
+            else:
+                print(rendered, end="")
+        elif report_format == "pdf":
             if not args.output:
                 print("--format pdf requires --output", file=sys.stderr)
                 raise SystemExit(2)
+            html = _render_html_report(
+                policy=policy,
+                directives=analysis_result.directives,
+                findings=findings,
+                theme=cast(ThemeName, args.theme),
+                template=args.template,
+            )
             pdf_bytes = _render_pdf_from_html(html)
             _write_output_bytes(cast(Path, args.output), pdf_bytes)
         else:
+            html = _render_html_report(
+                policy=policy,
+                directives=analysis_result.directives,
+                findings=findings,
+                theme=cast(ThemeName, args.theme),
+                template=args.template,
+            )
             if args.output:
                 _write_output_file(cast(Path, args.output), html)
             else:
@@ -1468,6 +1489,44 @@ def _render_html_report(
       background: rgba(148, 163, 184, 0.15);
       padding: 2px 6px;
       border-radius: 6px;
+      display: block;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }}
+    @media print {{
+      @page {{ margin: 12mm; }}
+      :root {{
+        color-scheme: light;
+        --bg: #ffffff;
+        --card: #ffffff;
+        --text: #111827;
+        --muted: #374151;
+        --border: #d1d5db;
+      }}
+      body {{
+        background: #ffffff;
+      }}
+      .container {{
+        max-width: none;
+        margin: 0;
+        padding: 0;
+      }}
+      .card {{
+        box-shadow: none;
+        border-radius: 12px;
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }}
+      table {{
+        font-size: 12px;
+      }}
+      thead {{
+        display: table-header-group;
+      }}
+      tr {{
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }}
     }}
 {template_css}
   </style>
@@ -1508,6 +1567,36 @@ def _render_html_report(
 </body>
 </html>
 """
+
+
+def _build_report_json(
+    *,
+    policy: str,
+    directives: dict[str, list[str]],
+    findings: list[Finding],
+    profile: RiskProfile,
+    theme: ThemeName,
+    template: str,
+) -> dict[str, object]:
+    counts: dict[str, int] = {"high": 0, "medium": 0, "low": 0}
+    for finding in findings:
+        if finding.severity in counts:
+            counts[finding.severity] += 1
+
+    summary = ", ".join(
+        f"{counts[key]} {key}" for key in ("high", "medium", "low") if counts[key]
+    ) or "no findings"
+
+    return {
+        "policy": policy.strip(),
+        "profile": profile,
+        "theme": theme,
+        "template": template,
+        "directives": directives,
+        "findings": [asdict(finding) for finding in findings],
+        "counts": counts,
+        "summary": summary,
+    }
 
 
 def _print_diff(
