@@ -75,3 +75,4 @@
 
 ## Notes
 - This file is maintained by the autonomous clone loop.
+- 2026-02-10: Maintenance refactor: de-duplicated CLI finding counts/summaries and HTML row rendering helpers (no behavior change). Evidence: `src/csp_doctor/cli.py`, `src/csp_doctor/core.py`, `PROJECT_MEMORY.md`.

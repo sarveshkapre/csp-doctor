@@ -43,6 +43,7 @@ class BaselineSnapshot:
     profile: RiskProfile = "recommended"
     environment: str | None = None
 
+
 def normalize_policy_input(text: str) -> str:
     """Normalize various CSP input forms into a raw policy string.
 

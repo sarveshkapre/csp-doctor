@@ -224,6 +224,7 @@
 - `.venv/bin/python -m csp_doctor schema --kind report` (pass)
 - `.venv/bin/python -m pip install -e ".[dev]"` (pass)
 - `make security` (pass: bandit ok; pip-audit ok with local package skipped)
+- `make check` (pass: refactor-only CLI cleanup)
 
 ## Market Scan (Bounded)
 

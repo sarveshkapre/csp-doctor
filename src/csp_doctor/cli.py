@@ -613,7 +613,9 @@ def _apply_suppressions_to_diff(diff: DiffResult, suppressions: set[str]) -> Dif
     if not suppressions:
         return diff
 
-    added = [finding for finding in diff.added_findings if finding.key not in suppressions]
+    added = [
+        finding for finding in diff.added_findings if finding.key not in suppressions
+    ]
     removed = [
         finding for finding in diff.removed_findings if finding.key not in suppressions
     ]
@@ -649,7 +651,11 @@ def _enforce_fail_on_findings(fail_on: str, findings: list[Finding]) -> None:
     if threshold >= 90:
         return
 
-    violating = [finding for finding in findings if _severity_rank(finding.severity) >= threshold]
+    violating = [
+        finding
+        for finding in findings
+        if _severity_rank(finding.severity) >= threshold
+    ]
     if not violating:
         return
 
@@ -997,7 +1003,9 @@ def _load_baseline_snapshot(
         raise SystemExit(2)
 
     try:
-        snapshot_profile = _validate_baseline_profile(payload.get("profile", "recommended"))
+        snapshot_profile = _validate_baseline_profile(
+            payload.get("profile", "recommended")
+        )
     except ValueError as exc:
         print(f"Invalid baseline snapshot: {exc}", file=sys.stderr)
         raise SystemExit(2) from exc
@@ -1221,24 +1229,18 @@ def _print_analysis(
         print("\nFindings: none")
         return
 
-    counts = {"high": 0, "medium": 0, "low": 0}
-    for finding in findings:
-        if finding.severity in counts:
-            counts[finding.severity] += 1
+    counts = _count_findings(findings)
 
     print("\nFindings:")
-    summary = ", ".join(
-        f"{counts[key]} {key}" for key in ("high", "medium", "low") if counts[key]
-    )
+    summary = _counts_summary(counts)
     if summary:
         print(f"({len(findings)} total: {summary})\n")
     if suppressed_count:
         print(f"(suppressed {suppressed_count} finding(s))\n")
 
-    severity_order = {"high": 0, "medium": 1, "low": 2}
     for finding in sorted(
         findings,
-        key=lambda item: (severity_order.get(item.severity, 9), item.title),
+        key=_finding_sort_key,
     ):
         label = finding.severity.upper()
         label = _color_severity_label(
@@ -1384,36 +1386,17 @@ def _render_html_report(
     theme: ThemeName = "system",
     template: str = "classic",
 ) -> str:
-    counts = {"high": 0, "medium": 0, "low": 0}
-    for finding in findings:
-        if finding.severity in counts:
-            counts[finding.severity] += 1
+    counts = _count_findings(findings)
 
-    severity_order = {"high": 0, "medium": 1, "low": 2}
     sorted_findings = sorted(
         findings,
-        key=lambda item: (severity_order.get(item.severity, 9), item.title),
+        key=_finding_sort_key,
     )
 
-    directives_rows = "\n".join(
-        f"<tr><td>{escape(name)}</td><td>{escape(' '.join(values) or '(no sources)')}</td></tr>"
-        for name, values in sorted(directives.items())
-    )
-    findings_rows = "\n".join(
-        (
-            "<tr>"
-            f"<td class=\"sev {escape(finding.severity)}\">{escape(finding.severity.upper())}</td>"
-            f"<td>{escape(finding.title)}</td>"
-            f"<td>{escape(finding.detail)}</td>"
-            f"<td>{escape(finding.evidence or '')}</td>"
-            "</tr>"
-        )
-        for finding in sorted_findings
-    )
+    directives_rows = _render_directives_rows(directives)
+    findings_rows = _render_findings_rows(sorted_findings)
 
-    summary = ", ".join(
-        f"{counts[key]} {key}" for key in ("high", "medium", "low") if counts[key]
-    ) or "no findings"
+    summary = _counts_summary(counts) or "no findings"
 
     theme_vars = THEME_OVERRIDES.get(theme, {})
     theme_css = "\n      ".join(f"{key}: {value};" for key, value in theme_vars.items())
@@ -1578,14 +1561,9 @@ def _build_report_json(
     theme: ThemeName,
     template: str,
 ) -> dict[str, object]:
-    counts: dict[str, int] = {"high": 0, "medium": 0, "low": 0}
-    for finding in findings:
-        if finding.severity in counts:
-            counts[finding.severity] += 1
+    counts = _count_findings(findings)
 
-    summary = ", ".join(
-        f"{counts[key]} {key}" for key in ("high", "medium", "low") if counts[key]
-    ) or "no findings"
+    summary = _counts_summary(counts) or "no findings"
 
     return {
         "policy": policy.strip(),
@@ -1709,6 +1687,50 @@ def _color_severity_label(
     if severity == "low":
         return f"\033[{colors['low']}m{label}\033[0m"
     return label
+
+
+def _count_findings(findings: list[Finding]) -> dict[str, int]:
+    counts: dict[str, int] = {"high": 0, "medium": 0, "low": 0}
+    for finding in findings:
+        if finding.severity in counts:
+            counts[finding.severity] += 1
+    return counts
+
+
+def _counts_summary(counts: dict[str, int]) -> str:
+    return ", ".join(
+        f"{counts[key]} {key}" for key in ("high", "medium", "low") if counts.get(key)
+    )
+
+
+def _finding_sort_key(item: Finding) -> tuple[int, str]:
+    severity_order = {"high": 0, "medium": 1, "low": 2}
+    return severity_order.get(item.severity, 9), item.title
+
+
+def _render_directives_rows(directives: dict[str, list[str]]) -> str:
+    rows: list[str] = []
+    for name, values in sorted(directives.items()):
+        sources = " ".join(values) or "(no sources)"
+        rows.append(
+            f"<tr><td>{escape(name)}</td><td>{escape(sources)}</td></tr>"
+        )
+    return "\n".join(rows)
+
+
+def _render_findings_rows(findings: list[Finding]) -> str:
+    rows: list[str] = []
+    for finding in findings:
+        rows.append(
+            "<tr>"
+            f"<td class=\"sev {escape(finding.severity)}\">"
+            f"{escape(finding.severity.upper())}</td>"
+            f"<td>{escape(finding.title)}</td>"
+            f"<td>{escape(finding.detail)}</td>"
+            f"<td>{escape(finding.evidence or '')}</td>"
+            "</tr>"
+        )
+    return "\n".join(rows)
 
 
 if __name__ == "__main__":
