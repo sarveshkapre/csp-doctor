@@ -225,6 +225,7 @@
 - `.venv/bin/python -m pip install -e ".[dev]"` (pass)
 - `make security` (pass: bandit ok; pip-audit ok with local package skipped)
 - `make check` (pass: refactor-only CLI cleanup)
+- `make check` (pass: docs cleanup - root `PLAN.md` now points to `docs/PLAN.md`)
 
 ## Market Scan (Bounded)
 
