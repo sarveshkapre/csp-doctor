@@ -249,8 +249,10 @@
 
 ### 2026-02-10
 - Sources (untrusted/web):
+  - https://csp-evaluator.withgoogle.com/
   - https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/report-uri
   - https://developer.mozilla.org/docs/Web/HTTP/Headers/Content-Security-Policy/report-to
+  - https://securityheaders.com/
   - https://owasp.org/index.php/OWASP_Secure_Headers_Project
   - https://docs.report-uri.com/setup/csp/
 - Expectations (untrusted/web):
