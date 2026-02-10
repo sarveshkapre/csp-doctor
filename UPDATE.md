@@ -1,30 +1,8 @@
 # UPDATE
 
-## What shipped
-- `analyze`/`report`/`diff`: new `--profile strict|recommended|legacy` to tune finding strictness for rollout stage.
-- `diff`: baseline JSON snapshots now persist `profile` and reject profile mismatches when loading with `--baseline-json`.
-- CSP parsing now follows browser semantics for duplicate directives (first occurrence wins).
-- CI reliability: gitleaks PR scans now receive `GITHUB_TOKEN` in workflow execution.
-- New `docs/CODE_SCANNING.md` with SARIF upload guidance for GitHub Code Scanning.
-- `analyze`: accepts CSP via stdin (`--stdin` / `--csp -`) and header-line input (e.g. `Content-Security-Policy: ...`).
-- Improved analysis coverage: flags missing `frame-ancestors`, `base-uri`, `object-src`, and `upgrade-insecure-requests`.
-- Polished CLI text output: severity summary + optional color (`analyze --color auto|always|never`).
-- New `diff` command to compare a CSP against a baseline (`diff --baseline-file ...`).
-- New `schema` command for JSON output schemas (`schema --kind all`).
-- New CSP Level 3 checks for `require-trusted-types-for` and `trusted-types`.
-- New Report-To header template generation for report-only workflows.
-- New baseline JSON snapshots for `diff` comparisons (`--baseline-out`, `--baseline-json`).
-- New `normalize` command to sort directives and sources.
-- New `report` command to export an HTML report.
-- New CLI color presets and HTML report themes.
-- New baseline snapshot schema versioning for diff JSON.
-- New HTML report templates (classic, glass, minimal).
-- `report-only`: new `--full-header` for a copy/paste-ready header line.
+This file is deprecated.
 
-## How to verify
-```bash
-make check
-```
+See:
+- `docs/CHANGELOG.md` for shipped changes.
+- `docs/ROADMAP.md` for upcoming work.
 
-## Notes
-- Working directly on `main` (no PR created/updated).
