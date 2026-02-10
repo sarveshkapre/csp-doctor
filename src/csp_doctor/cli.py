@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib
 import json
 import os
 import sys
@@ -26,6 +27,7 @@ from csp_doctor.core import (
 )
 from csp_doctor.schema import get_schema
 from csp_doctor.style import COLOR_PRESETS, REPORT_TEMPLATES, THEME_OVERRIDES, ThemeName
+from csp_doctor.violations import load_violation_events, summarize_violation_events
 
 
 def main() -> None:
@@ -68,6 +70,14 @@ def main() -> None:
         "rollout", help="Generate a CSP rollout plan"
     )
     _add_csp_input_args(rollout_parser)
+    rollout_parser.add_argument(
+        "--violations-file",
+        type=Path,
+        help=(
+            "Path to CSP violation report samples (JSON or newline-delimited JSON) to "
+            "summarize and aid rollout tuning"
+        ),
+    )
 
     normalize_parser = subparsers.add_parser(
         "normalize",
@@ -148,6 +158,35 @@ def main() -> None:
         choices=list(RISK_PROFILES),
         default="recommended",
         help="Profile to explain under (affects severity and suppression)",
+    )
+
+    violations_parser = subparsers.add_parser(
+        "violations",
+        help="Summarize CSP violation report samples (legacy report-uri and Reporting API)",
+    )
+    violations_parser.add_argument(
+        "--file",
+        type=Path,
+        required=True,
+        help="Path to a JSON/NDJSON file containing CSP violation report objects",
+    )
+    violations_parser.add_argument(
+        "--format",
+        choices=["text", "json"],
+        default="text",
+        help="Output format",
+    )
+    violations_parser.add_argument(
+        "--top",
+        type=int,
+        default=10,
+        help="Number of top directives to show",
+    )
+    violations_parser.add_argument(
+        "--top-origins",
+        type=int,
+        default=5,
+        help="Number of top blocked origins to show per directive",
     )
 
     diff_parser = subparsers.add_parser(
@@ -258,6 +297,10 @@ def main() -> None:
         _handle_explain(args)
         return
 
+    if args.command == "violations":
+        _handle_violations(args)
+        return
+
     policy = _load_policy(args)
 
     if args.command == "analyze":
@@ -309,6 +352,9 @@ def main() -> None:
         directives = analyze_policy(policy).directives
         plan = rollout_plan(directives)
         _print_rollout(plan)
+        violations_file = cast(Path | None, getattr(args, "violations_file", None))
+        if violations_file:
+            _print_violations_for_rollout(violations_file)
         return
 
     if args.command == "normalize":
@@ -802,6 +848,90 @@ def _handle_explain(args: argparse.Namespace) -> None:
         print(f"Note: {note}")
 
 
+def _handle_violations(args: argparse.Namespace) -> None:
+    path = cast(Path, args.file)
+    try:
+        events, skipped = load_violation_events(path)
+    except OSError as exc:
+        print(f"Failed to read {path}: {exc}", file=sys.stderr)
+        raise SystemExit(1) from exc
+
+    if not events and skipped:
+        print(f"No valid violation reports found in {path}.", file=sys.stderr)
+        raise SystemExit(1)
+
+    summary = summarize_violation_events(
+        events,
+        top_directives=int(args.top),
+        top_origins_per_directive=int(args.top_origins),
+    )
+
+    if args.format == "json":
+        payload = {
+            "file": str(path),
+            "skipped": skipped,
+            **summary,
+        }
+        print(json.dumps(payload, indent=2))
+        return
+
+    _print_violations_summary_text(
+        path=path,
+        summary=summary,
+        skipped=skipped,
+    )
+
+
+def _print_violations_for_rollout(path: Path) -> None:
+    try:
+        events, skipped = load_violation_events(path)
+    except OSError as exc:
+        print(f"\nViolations summary: failed to read {path}: {exc}", file=sys.stderr)
+        return
+
+    if not events and skipped:
+        print(f"\nViolations summary: no valid reports found in {path}.", file=sys.stderr)
+        return
+
+    summary = summarize_violation_events(events)
+    print()
+    _print_violations_summary_text(path=path, summary=summary, skipped=skipped)
+
+
+def _print_violations_summary_text(
+    *,
+    path: Path,
+    summary: dict[str, object],
+    skipped: int,
+) -> None:
+    total_raw = summary.get("total_events", 0)
+    total = total_raw if isinstance(total_raw, int) else 0
+    directives = summary.get("directives", [])
+    print("Observed CSP violations\n")
+    print(f"Source: {path}")
+    print(f"Valid events: {total}")
+    if skipped:
+        print(f"Skipped: {skipped} invalid/unrecognized record(s)")
+
+    if not directives:
+        print("\nTop directives: (none)")
+        return
+
+    print("\nTop directives:")
+    for item in cast(list[dict[str, object]], directives):
+        directive = str(item.get("directive", "") or "")
+        count_raw = item.get("count", 0)
+        count = count_raw if isinstance(count_raw, int) else 0
+        print(f"- {directive}: {count}")
+        origins = item.get("top_blocked_origins", [])
+        for origin_item in cast(list[dict[str, object]], origins):
+            origin = str(origin_item.get("origin", "") or "")
+            origin_count_raw = origin_item.get("count", 0)
+            origin_count = origin_count_raw if isinstance(origin_count_raw, int) else 0
+            if origin:
+                print(f"  - {origin}: {origin_count}")
+
+
 def _load_baseline_policy(args: argparse.Namespace) -> str:
     baseline = getattr(args, "baseline", None)
     baseline_file = getattr(args, "baseline_file", None)
@@ -1030,7 +1160,8 @@ def _write_output_bytes(path: Path, content: bytes) -> None:
 
 def _render_pdf_from_html(html: str) -> bytes:
     try:
-        from weasyprint import HTML  # type: ignore[import-not-found]
+        module = importlib.import_module("weasyprint")
+        html_cls = module.HTML
     except Exception as exc:
         print(
             "PDF export requires the optional 'weasyprint' dependency. "
@@ -1040,7 +1171,7 @@ def _render_pdf_from_html(html: str) -> bytes:
         raise SystemExit(2) from exc
 
     try:
-        rendered = HTML(string=html).write_pdf()
+        rendered = html_cls(string=html).write_pdf()
         return cast(bytes, rendered)
     except Exception as exc:
         print(f"Failed to render PDF: {exc}", file=sys.stderr)

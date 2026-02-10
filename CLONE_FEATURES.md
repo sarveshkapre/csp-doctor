@@ -22,11 +22,23 @@
 - Selected: Add `explain` command for finding keys (with JSON/text output and `--list`). Score: impact high, effort low, strategic fit high, differentiation medium, risk low, confidence high.
 - Selected: Add baseline snapshot environment metadata (staging/prod tracking) with optional mismatch enforcement in `diff`. Score: impact medium, effort medium, strategic fit high, differentiation low, risk low, confidence medium.
 
+## Session Prioritization (cycle 1 - 2026-02-10)
+- Selected: Add optional CSP violation report import (file path) to summarize violations and aid rollout tuning. Score: impact high, effort medium, strategic fit high, differentiation medium, risk low, confidence medium.
+- Selected: Add `make security` target (bandit + pip-audit) to match CI locally. Score: impact medium, effort low, strategic fit high, differentiation low, risk low, confidence high.
+- Selected: Improve HTML report print stylesheet/pagination for better manual "Print to PDF" flows. Score: impact medium, effort low, strategic fit medium, differentiation low, risk low, confidence high.
+- Selected: Add `report --format json` (plus schema) to export directives/findings in a single machine-readable artifact aligned with HTML report. Score: impact medium, effort medium, strategic fit high, differentiation low, risk low, confidence medium.
+
 ## Candidate Features To Do
+- [ ] P1: Add optional CSP violation report import (file path) and summarize violations to aid rollout tuning.
 - [ ] P2: Add a `make security` target (bandit + pip-audit) to match CI locally.
-- [ ] P3: Add a print stylesheet / pagination improvements for HTML reports (for better manual "Print to PDF").
-- [ ] P3: Add optional import path for CSP violation report samples to aid rollout tuning.
-- [ ] P3: Add `report --format json` to export directives/findings in a single artifact aligned with HTML report.
+- [ ] P2: Improve HTML report print stylesheet/pagination for better manual "Print to PDF".
+- [ ] P2: Add `report --format json` (plus `schema --kind report`) to export directives/findings aligned with HTML report.
+- [ ] P3: Add JSON output for `violations` summaries (for CI artifact ingestion).
+- [ ] P3: Add a `rollout --violations-file ...` shortcut to embed violation summary into the rollout checklist output.
+- [ ] P3: Add docs/examples for violation report formats supported (legacy `report-uri` JSON and Reporting API JSON).
+- [ ] P4: Add `report --format json` example usage in `docs/CI.md` for artifacting.
+- [ ] P4: Consider adding suppressed-count metadata to JSON/SARIF outputs once schemas support optional summary fields.
+- [ ] P4: Expand analyzer coverage for `frame-src`/`worker-src`/`manifest-src` parity checks (low risk, incremental).
 
 ## Implemented
 - [x] 2026-02-09: Add `explain` command for finding keys (`csp-doctor explain <key>`, `--list`, `--format json`). Evidence: `src/csp_doctor/cli.py`, `tests/test_cli.py`, `README.md`.

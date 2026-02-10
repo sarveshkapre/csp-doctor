@@ -814,3 +814,90 @@ def test_cli_report_template_glass() -> None:
     )
     assert proc.returncode == 0, proc.stderr
     assert 'data-template="glass"' in proc.stdout
+
+
+def test_cli_violations_outputs_json_summary(tmp_path) -> None:
+    path = tmp_path / "violations.ndjson"
+    path.write_text(
+        "\n".join(
+            [
+                json.dumps(
+                    {
+                        "csp-report": {
+                            "effective-directive": "script-src",
+                            "blocked-uri": "https://cdn.example.com/app.js",
+                            "disposition": "report",
+                        }
+                    }
+                ),
+                json.dumps(
+                    {
+                        "type": "csp-violation",
+                        "body": {
+                            "effectiveDirective": "img-src",
+                            "blockedURL": "data:image/png;base64,aaaa",
+                            "disposition": "enforce",
+                        },
+                    }
+                ),
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "violations",
+            "--file",
+            str(path),
+            "--format",
+            "json",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["total_events"] == 2
+    directives = {item["directive"]: item for item in payload["directives"]}
+    assert directives["script-src"]["count"] == 1
+    assert directives["img-src"]["count"] == 1
+
+
+def test_cli_rollout_can_summarize_violation_file(tmp_path) -> None:
+    path = tmp_path / "violations.json"
+    path.write_text(
+        json.dumps(
+            [
+                {
+                    "csp-report": {
+                        "effective-directive": "script-src",
+                        "blocked-uri": "https://cdn.example.com/app.js",
+                    }
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "rollout",
+            "--csp",
+            "default-src 'self'",
+            "--violations-file",
+            str(path),
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "Observed CSP violations" in proc.stdout
+    assert "script-src" in proc.stdout

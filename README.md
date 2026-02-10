@@ -55,6 +55,18 @@ Generate a rollout plan:
 csp-doctor rollout --csp "default-src 'self'; script-src 'self'"
 ```
 
+Summarize CSP violation reports (legacy `report-uri` JSON and Reporting API JSON):
+
+```bash
+csp-doctor violations --file violations.ndjson
+```
+
+Embed a violation summary into the rollout checklist output:
+
+```bash
+csp-doctor rollout --csp "default-src 'self'" --violations-file violations.ndjson
+```
+
 Normalize a CSP for stable diffs:
 
 ```bash
