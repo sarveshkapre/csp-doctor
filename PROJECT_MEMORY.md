@@ -145,7 +145,7 @@
   - `src/csp_doctor/cli.py`
   - `tests/test_cli.py`
   - `README.md`
-- Commit: `e9f9e38e55afab0c39fcf04e8a98d159e7dbf8fd`
+- Commit: `e9f9e38ced67925dbd3bcbd7d425413263b9e71b`
 - Confidence: medium
 - Trust label: validated-local
 
@@ -157,7 +157,7 @@
   - `src/csp_doctor/schema.py`
   - `tests/test_cli.py`
   - `README.md`
-- Commit: TBD
+- Commit: `c960d337fcbe5e30f4c540ae884b022cdb76f098`
 - Confidence: medium
 - Trust label: validated-local
 
@@ -168,7 +168,7 @@
   - `Makefile`
   - `pyproject.toml`
   - `.github/workflows/ci.yml`
-- Commit: TBD
+- Commit: `c960d337fcbe5e30f4c540ae884b022cdb76f098`
 - Confidence: high
 - Trust label: validated-local
 
