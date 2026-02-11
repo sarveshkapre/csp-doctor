@@ -118,6 +118,26 @@ def main() -> None:
         default="classic",
         help="Report HTML template style",
     )
+    report_parser.add_argument(
+        "--violations-file",
+        type=Path,
+        help=(
+            "Path to CSP violation report samples (JSON or newline-delimited JSON) to "
+            "summarize in the report output"
+        ),
+    )
+    report_parser.add_argument(
+        "--violations-top",
+        type=_positive_int,
+        default=10,
+        help="Number of top directives to include in report violation summaries",
+    )
+    report_parser.add_argument(
+        "--violations-top-origins",
+        type=_positive_int,
+        default=5,
+        help="Number of top blocked origins per directive in report violation summaries",
+    )
     _add_profile_arg(report_parser)
     _add_suppression_args(report_parser)
     _add_fail_on_arg(report_parser)
@@ -178,13 +198,13 @@ def main() -> None:
     )
     violations_parser.add_argument(
         "--top",
-        type=int,
+        type=_positive_int,
         default=10,
         help="Number of top directives to show",
     )
     violations_parser.add_argument(
         "--top-origins",
-        type=int,
+        type=_positive_int,
         default=5,
         help="Number of top blocked origins to show per directive",
     )
@@ -373,6 +393,7 @@ def main() -> None:
         findings, _suppressed_count = _apply_suppressions(
             analysis_result.findings, suppressions
         )
+        violations_summary = _load_report_violations_summary(args)
         report_format = cast(str, args.format)
         if report_format == "json":
             report_payload = _build_report_json(
@@ -382,6 +403,7 @@ def main() -> None:
                 profile=profile,
                 theme=cast(ThemeName, args.theme),
                 template=args.template,
+                violations=violations_summary,
             )
             rendered = json.dumps(report_payload, indent=2) + "\n"
             if args.output:
@@ -398,6 +420,7 @@ def main() -> None:
                 findings=findings,
                 theme=cast(ThemeName, args.theme),
                 template=args.template,
+                violations=violations_summary,
             )
             pdf_bytes = _render_pdf_from_html(html)
             _write_output_bytes(cast(Path, args.output), pdf_bytes)
@@ -408,6 +431,7 @@ def main() -> None:
                 findings=findings,
                 theme=cast(ThemeName, args.theme),
                 template=args.template,
+                violations=violations_summary,
             )
             if args.output:
                 _write_output_file(cast(Path, args.output), html)
@@ -569,6 +593,16 @@ def _add_fail_on_arg(parser: argparse.ArgumentParser) -> None:
             "For diff: only considers added findings and severity escalations."
         ),
     )
+
+
+def _positive_int(value: str) -> int:
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("must be an integer") from exc
+    if parsed < 1:
+        raise argparse.ArgumentTypeError("must be >= 1")
+    return parsed
 
 
 def _load_suppressions(args: argparse.Namespace) -> set[str]:
@@ -878,51 +912,91 @@ def _handle_explain(args: argparse.Namespace) -> None:
 def _handle_violations(args: argparse.Namespace) -> None:
     path = cast(Path, args.file)
     try:
-        events, skipped = load_violation_events(path)
+        payload, has_valid = _load_violations_payload(
+            path,
+            top_directives=int(args.top),
+            top_origins_per_directive=int(args.top_origins),
+        )
     except OSError as exc:
         print(f"Failed to read {path}: {exc}", file=sys.stderr)
         raise SystemExit(1) from exc
 
-    if not events and skipped:
+    skipped_raw = payload.get("skipped", 0)
+    skipped = skipped_raw if isinstance(skipped_raw, int) else 0
+    if not has_valid and skipped:
         print(f"No valid violation reports found in {path}.", file=sys.stderr)
         raise SystemExit(1)
 
-    summary = summarize_violation_events(
-        events,
-        top_directives=int(args.top),
-        top_origins_per_directive=int(args.top_origins),
-    )
-
     if args.format == "json":
-        payload = {
-            "file": str(path),
-            "skipped": skipped,
-            **summary,
-        }
         print(json.dumps(payload, indent=2))
         return
 
     _print_violations_summary_text(
         path=path,
-        summary=summary,
+        summary=payload,
         skipped=skipped,
     )
 
 
 def _print_violations_for_rollout(path: Path) -> None:
     try:
-        events, skipped = load_violation_events(path)
+        payload, has_valid = _load_violations_payload(path)
     except OSError as exc:
         print(f"\nViolations summary: failed to read {path}: {exc}", file=sys.stderr)
         return
 
-    if not events and skipped:
+    skipped_raw = payload.get("skipped", 0)
+    skipped = skipped_raw if isinstance(skipped_raw, int) else 0
+    if not has_valid and skipped:
         print(f"\nViolations summary: no valid reports found in {path}.", file=sys.stderr)
         return
 
-    summary = summarize_violation_events(events)
     print()
-    _print_violations_summary_text(path=path, summary=summary, skipped=skipped)
+    _print_violations_summary_text(path=path, summary=payload, skipped=skipped)
+
+
+def _load_report_violations_summary(args: argparse.Namespace) -> dict[str, object] | None:
+    path = cast(Path | None, getattr(args, "violations_file", None))
+    if path is None:
+        return None
+
+    try:
+        payload, has_valid = _load_violations_payload(
+            path,
+            top_directives=int(getattr(args, "violations_top", 10)),
+            top_origins_per_directive=int(getattr(args, "violations_top_origins", 5)),
+        )
+    except OSError as exc:
+        print(f"Failed to read {path}: {exc}", file=sys.stderr)
+        raise SystemExit(1) from exc
+
+    skipped_raw = payload.get("skipped", 0)
+    skipped = skipped_raw if isinstance(skipped_raw, int) else 0
+    if not has_valid and skipped:
+        print(f"No valid violation reports found in {path}.", file=sys.stderr)
+        raise SystemExit(1)
+
+    return payload
+
+
+def _load_violations_payload(
+    path: Path,
+    *,
+    top_directives: int = 10,
+    top_origins_per_directive: int = 5,
+) -> tuple[dict[str, object], bool]:
+    events, skipped = load_violation_events(path)
+    summary = summarize_violation_events(
+        events,
+        top_directives=top_directives,
+        top_origins_per_directive=top_origins_per_directive,
+    )
+    payload = {
+        "file": str(path),
+        "skipped": skipped,
+        **summary,
+    }
+    return payload, bool(events)
 
 
 def _print_violations_summary_text(
@@ -1385,6 +1459,7 @@ def _render_html_report(
     findings: list[Finding],
     theme: ThemeName = "system",
     template: str = "classic",
+    violations: dict[str, object] | None = None,
 ) -> str:
     counts = _count_findings(findings)
 
@@ -1395,6 +1470,7 @@ def _render_html_report(
 
     directives_rows = _render_directives_rows(directives)
     findings_rows = _render_findings_rows(sorted_findings)
+    violations_section = _render_violations_section(violations)
 
     summary = _counts_summary(counts) or "no findings"
 
@@ -1546,6 +1622,7 @@ def _render_html_report(
         </tbody>
       </table>
     </div>
+    {violations_section}
   </div>
 </body>
 </html>
@@ -1560,12 +1637,13 @@ def _build_report_json(
     profile: RiskProfile,
     theme: ThemeName,
     template: str,
+    violations: dict[str, object] | None = None,
 ) -> dict[str, object]:
     counts = _count_findings(findings)
 
     summary = _counts_summary(counts) or "no findings"
 
-    return {
+    payload: dict[str, object] = {
         "policy": policy.strip(),
         "profile": profile,
         "theme": theme,
@@ -1575,6 +1653,9 @@ def _build_report_json(
         "counts": counts,
         "summary": summary,
     }
+    if violations is not None:
+        payload["violations"] = violations
+    return payload
 
 
 def _print_diff(
@@ -1731,6 +1812,72 @@ def _render_findings_rows(findings: list[Finding]) -> str:
             "</tr>"
         )
     return "\n".join(rows)
+
+
+def _render_violations_section(violations: dict[str, object] | None) -> str:
+    if violations is None:
+        return ""
+
+    source = escape(str(violations.get("file", "") or ""))
+    total_raw = violations.get("total_events", 0)
+    total = total_raw if isinstance(total_raw, int) else 0
+    skipped_raw = violations.get("skipped", 0)
+    skipped = skipped_raw if isinstance(skipped_raw, int) else 0
+    directives_raw = violations.get("directives", [])
+    directives = (
+        directives_raw
+        if isinstance(directives_raw, list)
+        else []
+    )
+
+    rows: list[str] = []
+    for item in directives:
+        if not isinstance(item, dict):
+            continue
+        directive = escape(str(item.get("directive", "") or ""))
+        count_raw = item.get("count", 0)
+        count = count_raw if isinstance(count_raw, int) else 0
+        origins_raw = item.get("top_blocked_origins", [])
+        origins = origins_raw if isinstance(origins_raw, list) else []
+        origins_html = _render_violation_origins(origins)
+        rows.append(
+            "<tr>"
+            f"<td>{directive}</td>"
+            f"<td>{count}</td>"
+            f"<td>{origins_html}</td>"
+            "</tr>"
+        )
+
+    rows_html = "\n".join(rows) or "<tr><td colspan=\"3\">(none)</td></tr>"
+    skipped_line = (
+        f" | Skipped: {skipped} invalid/unrecognized record(s)" if skipped else ""
+    )
+    return (
+        "<div class=\"card\">"
+        "<h2>Observed Violations</h2>"
+        f"<div class=\"muted\">Source: {source}</div>"
+        f"<div class=\"muted\">Valid events: {total}{escape(skipped_line)}</div>"
+        "<table>"
+        "<thead><tr><th>Directive</th><th>Count</th><th>Top blocked origins</th></tr></thead>"
+        f"<tbody>{rows_html}</tbody>"
+        "</table>"
+        "</div>"
+    )
+
+
+def _render_violation_origins(origins: list[object]) -> str:
+    rows: list[str] = []
+    for origin_item in origins:
+        if not isinstance(origin_item, dict):
+            continue
+        origin = escape(str(origin_item.get("origin", "") or ""))
+        count_raw = origin_item.get("count", 0)
+        count = count_raw if isinstance(count_raw, int) else 0
+        if origin:
+            rows.append(f"{origin}: {count}")
+    if not rows:
+        return "(none)"
+    return "<br />".join(rows)
 
 
 if __name__ == "__main__":

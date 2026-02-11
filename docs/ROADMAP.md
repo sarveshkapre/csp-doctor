@@ -1,15 +1,17 @@
 # ROADMAP
 
 ## Now
-- Optionally surface violation summaries in `report` output (HTML/JSON) to aid rollout triage.
-
-## Next
-- Expand `violations` parsing coverage with more real-world schema variants (while staying strict by default).
-
-## Later
 - Add a first-class baseline update workflow (`diff --baseline-update ...`) for teams managing long-lived snapshots.
 
+## Next
+- Keep expanding `violations` parsing coverage with additional real-world schema variants while preserving strict-by-default behavior.
+
+## Later
+- Expand analyzer coverage for `frame-src`/`worker-src`/`manifest-src` parity checks.
+
 ## Done (recent)
+- 2026-02-11: Add `report --violations-file` support to embed violation summaries in HTML/JSON reports.
+- 2026-02-11: Expand violation parsing support for wrapped exports (`reports`/`violations`/`events`) and JSON-string bodies.
 - 2026-02-10: Add `report --format json` output and publish a JSON Schema via `schema --kind report`.
 - 2026-02-10: Improve HTML report print stylesheet/pagination for better manual "Print to PDF".
 - 2026-02-10: Add `make security` target (bandit + pip-audit) to match CI locally.

@@ -107,6 +107,14 @@ Export a JSON report artifact:
 csp-doctor report --csp "default-src 'self'" --format json --output report.json
 ```
 
+Embed a CSP violation summary in report output:
+
+```bash
+csp-doctor report --csp "default-src 'self'" --format json \
+  --violations-file violations.ndjson --violations-top 10 --violations-top-origins 5 \
+  --output report.json
+```
+
 Export a PDF report (optional dependency):
 
 ```bash

@@ -751,6 +751,109 @@ def test_cli_report_outputs_json() -> None:
     assert "counts" in payload
 
 
+def test_cli_report_outputs_json_with_violations_summary(tmp_path) -> None:
+    violations_path = tmp_path / "violations.ndjson"
+    violations_path.write_text(
+        json.dumps(
+            {
+                "csp-report": {
+                    "effective-directive": "script-src",
+                    "blocked-uri": "https://cdn.example.com/app.js",
+                }
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "report",
+            "--csp",
+            "default-src 'self'",
+            "--format",
+            "json",
+            "--violations-file",
+            str(violations_path),
+            "--violations-top",
+            "1",
+            "--violations-top-origins",
+            "1",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    assert payload["violations"]["total_events"] == 1
+    assert payload["violations"]["directives"][0]["directive"] == "script-src"
+
+
+def test_cli_report_outputs_html_with_violations_summary(tmp_path) -> None:
+    violations_path = tmp_path / "violations.json"
+    violations_path.write_text(
+        json.dumps(
+            [
+                {
+                    "csp-report": {
+                        "effective-directive": "script-src",
+                        "blocked-uri": "https://cdn.example.com/app.js",
+                    }
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "report",
+            "--csp",
+            "default-src 'self'",
+            "--violations-file",
+            str(violations_path),
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "Observed Violations" in proc.stdout
+    assert "script-src" in proc.stdout
+
+
+def test_cli_report_rejects_invalid_violations_summary_file(tmp_path) -> None:
+    violations_path = tmp_path / "invalid-violations.ndjson"
+    violations_path.write_text(
+        json.dumps({"unexpected": "shape"}) + "\n",
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "report",
+            "--csp",
+            "default-src 'self'",
+            "--format",
+            "json",
+            "--violations-file",
+            str(violations_path),
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 1
+    assert "No valid violation reports found" in proc.stderr
+
+
 def test_cli_report_writes_json_file(tmp_path) -> None:
     output_path = tmp_path / "report.json"
     proc = subprocess.run(
@@ -915,6 +1018,39 @@ def test_cli_violations_outputs_json_summary(tmp_path) -> None:
     directives = {item["directive"]: item for item in payload["directives"]}
     assert directives["script-src"]["count"] == 1
     assert directives["img-src"]["count"] == 1
+
+
+def test_cli_violations_rejects_non_positive_limits(tmp_path) -> None:
+    path = tmp_path / "violations.ndjson"
+    path.write_text(
+        json.dumps(
+            {
+                "csp-report": {
+                    "effective-directive": "script-src",
+                    "blocked-uri": "https://cdn.example.com/app.js",
+                }
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "csp_doctor",
+            "violations",
+            "--file",
+            str(path),
+            "--top",
+            "0",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert proc.returncode == 2
+    assert "must be >= 1" in proc.stderr
 
 
 def test_cli_rollout_can_summarize_violation_file(tmp_path) -> None:

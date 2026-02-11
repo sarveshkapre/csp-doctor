@@ -119,6 +119,39 @@ COUNTS_SCHEMA: dict[str, Any] = {
     "required": ["high", "medium", "low"],
 }
 
+VIOLATION_ORIGIN_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "origin": {"type": "string"},
+        "count": {"type": "integer", "minimum": 0},
+    },
+    "required": ["origin", "count"],
+}
+
+VIOLATION_DIRECTIVE_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "directive": {"type": "string"},
+        "count": {"type": "integer", "minimum": 0},
+        "top_blocked_origins": {"type": "array", "items": VIOLATION_ORIGIN_SCHEMA},
+    },
+    "required": ["directive", "count", "top_blocked_origins"],
+}
+
+VIOLATIONS_SUMMARY_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "file": {"type": "string"},
+        "skipped": {"type": "integer", "minimum": 0},
+        "total_events": {"type": "integer", "minimum": 0},
+        "directives": {"type": "array", "items": VIOLATION_DIRECTIVE_SCHEMA},
+    },
+    "required": ["file", "skipped", "total_events", "directives"],
+}
+
 REPORT_SCHEMA: dict[str, Any] = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$id": "https://example.invalid/csp-doctor/schema/report.json",
@@ -134,6 +167,7 @@ REPORT_SCHEMA: dict[str, Any] = {
         "findings": {"type": "array", "items": FINDING_SCHEMA},
         "counts": COUNTS_SCHEMA,
         "summary": {"type": "string"},
+        "violations": VIOLATIONS_SUMMARY_SCHEMA,
     },
     "required": [
         "policy",

@@ -46,8 +46,21 @@ def _read_json_or_ndjson(path: Path) -> tuple[list[dict[str, Any]], int]:
         return records, skipped
 
     if isinstance(loaded, list):
-        return [item for item in loaded if isinstance(item, dict)], 0
+        loaded_records: list[dict[str, Any]] = []
+        skipped = 0
+        for item in loaded:
+            if isinstance(item, dict):
+                loaded_records.append(item)
+            else:
+                skipped += 1
+        return loaded_records, skipped
     if isinstance(loaded, dict):
+        for key in ("reports", "violations", "events"):
+            wrapped = loaded.get(key)
+            if isinstance(wrapped, list):
+                wrapped_records = [item for item in wrapped if isinstance(item, dict)]
+                skipped = len(wrapped) - len(wrapped_records)
+                return wrapped_records, skipped
         return [loaded], 0
     return [], 1
 
@@ -89,15 +102,13 @@ def _extract_event(obj: dict[str, Any]) -> ViolationEvent | None:
     body: dict[str, Any] | None = None
 
     # Legacy report-uri format: {"csp-report": {...}}
-    legacy = obj.get("csp-report")
-    if isinstance(legacy, dict):
+    legacy = _parse_embedded_dict(obj.get("csp-report"))
+    if legacy is not None:
         body = legacy
 
     # Reporting API format: {"type":"csp-violation","body":{...}}
     if body is None:
-        report_body = obj.get("body")
-        if isinstance(report_body, dict):
-            body = report_body
+        body = _parse_embedded_dict(obj.get("body"))
 
     if body is None:
         body = obj
@@ -127,6 +138,25 @@ def _extract_event(obj: dict[str, Any]) -> ViolationEvent | None:
         blocked_origin=_blocked_origin(blocked),
         disposition=disposition.lower() if disposition else None,
     )
+
+
+def _parse_embedded_dict(value: Any) -> dict[str, Any] | None:
+    if isinstance(value, dict):
+        return value
+    if not isinstance(value, str):
+        return None
+
+    text = value.strip()
+    if not text:
+        return None
+
+    try:
+        loaded = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    if isinstance(loaded, dict):
+        return loaded
+    return None
 
 
 def load_violation_events(path: Path) -> tuple[list[ViolationEvent], int]:
@@ -175,4 +205,3 @@ def summarize_violation_events(
         "total_events": len(events),
         "directives": directives_rendered,
     }
-

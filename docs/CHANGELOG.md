@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## v0.1.18 - 2026-02-11
+- Add `report --violations-file` support (plus `--violations-top` and `--violations-top-origins`) to embed violation summaries in HTML and JSON report output.
+- Expand violation parser coverage for wrapped exports (`reports`/`violations`/`events`) and JSON-string report bodies.
+- Add parser and CLI regression tests for report-with-violations workflows and wrapped violation payloads.
+
 ## v0.1.17 - 2026-02-10
 - Add `violations` command (text/JSON) to summarize CSP violation report samples, and support embedding that summary into `rollout` via `--violations-file`.
 - Add `report --format json` plus `schema --kind report` for a single machine-readable artifact aligned with the HTML report.
