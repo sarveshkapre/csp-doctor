@@ -28,14 +28,29 @@
 - Selected: Improve HTML report print stylesheet/pagination for better manual "Print to PDF" flows. Score: impact medium, effort low, strategic fit medium, differentiation low, risk low, confidence high.
 - Selected: Add `report --format json` (plus schema) to export directives/findings in a single machine-readable artifact aligned with HTML report. Score: impact medium, effort medium, strategic fit high, differentiation low, risk low, confidence medium.
 
+## Session Prioritization (cycle 1 - 2026-02-11)
+- Selected: Add `report --violations-file` support to surface violation summaries in HTML and JSON outputs. Score: impact high, effort medium, strategic fit high, differentiation medium, risk low, confidence high.
+- Selected: Expand `violations` parser coverage for common wrapped export shapes (`reports`/`violations`/`events`) and JSON-string bodies. Score: impact high, effort medium, strategic fit high, differentiation medium, risk low, confidence medium.
+- Selected: Add regression tests and smoke paths for new report/violations workflows. Score: impact high, effort low, strategic fit high, differentiation low, risk low, confidence high.
+- Considered but deferred: baseline update workflow (`diff --baseline-update ...`) because report+violations gaps are higher PMF impact for current roadmap.
+
 ## Candidate Features To Do
-- [ ] P2: Optionally surface violation summaries in `report` output (HTML/JSON) to aid rollout triage.
-- [ ] P3: Expand `violations` parsing coverage with more real-world schema variants (while staying strict by default).
-- [ ] P3: Add a baseline update workflow for teams managing long-lived snapshots.
-- [ ] P4: Consider adding suppressed-count metadata to JSON/SARIF outputs once schemas support optional summary fields.
-- [ ] P4: Expand analyzer coverage for `frame-src`/`worker-src`/`manifest-src` parity checks (low risk, incremental).
+- [ ] P2: Add first-class baseline update workflow (`diff --baseline-update ...`) for long-lived snapshots.
+- [ ] P2: Add optional `violations --fail-on-skipped` to fail CI on malformed/unrecognized samples.
+- [ ] P2: Include optional `suppressed_count` metadata in JSON outputs where schema allows.
+- [ ] P3: Expand analyzer coverage for `frame-src`/`worker-src`/`manifest-src` parity checks.
+- [ ] P3: Add directive-level remediation hints in `report` JSON for automation pipelines.
+- [ ] P3: Add explicit Reporting API guidance for `Reporting-Endpoints` and deprecation posture in docs.
+- [ ] P3: Improve baseline snapshot forward-compatibility workflow (schema migration helper).
+- [ ] P3: Add a streaming NDJSON parser mode for large violation datasets.
+- [ ] P4: Add a lightweight benchmark target for parser/analyzer throughput regression checks.
+- [ ] P4: Add an optional pre-commit profile to run lint/typecheck/test quickly before push.
+- [ ] P4: Add end-to-end fixture corpus for real-world CSP/violation samples.
 
 ## Implemented
+- [x] 2026-02-11: Add `report --violations-file` support (plus `--violations-top`, `--violations-top-origins`) to embed violation summaries in HTML and JSON report output. Evidence: `src/csp_doctor/cli.py`, `src/csp_doctor/schema.py`, `tests/test_cli.py`, `README.md`.
+- [x] 2026-02-11: Expand violation parser coverage for wrapped exports (`reports`/`violations`/`events`) and JSON-string bodies. Evidence: `src/csp_doctor/violations.py`, `tests/test_violations.py`, `tests/test_cli.py`.
+- [x] 2026-02-11: Validate `violations --top`/`--top-origins` and report equivalents as positive integers. Evidence: `src/csp_doctor/cli.py`, `tests/test_cli.py`.
 - [x] 2026-02-10: Summarize CSP violation reports via `csp-doctor violations` (text/JSON) and optionally embed summaries into `rollout` output (`--violations-file`). Evidence: `src/csp_doctor/violations.py`, `src/csp_doctor/cli.py`, `tests/test_cli.py`, `README.md`.
 - [x] 2026-02-10: Add `report --format json` and publish schema via `schema --kind report`. Evidence: `src/csp_doctor/cli.py`, `src/csp_doctor/schema.py`, `tests/test_cli.py`, `README.md`.
 - [x] 2026-02-10: Improve HTML report print stylesheet/pagination for better manual "Print to PDF". Evidence: `src/csp_doctor/cli.py`.
@@ -72,6 +87,8 @@
 - Duplicate CSP directives should follow browser-first semantics (first directive wins) to avoid false confidence from overwritten parser state.
 - Optional PDF export is best shipped as an opt-in dependency extra to keep the default install lightweight; error paths should be explicit and actionable when the extra isn't installed.
 - (untrusted/web) Comparable tools frequently surface: policy evaluation, reporting endpoint guidance, and rollout workflow helpers.
+- (untrusted/web) Competitive baseline expects clear policy diagnostics plus rollout telemetry: Google CSP Evaluator emphasizes bypass/policy checks (`https://csp-evaluator.withgoogle.com/`), Report URI emphasizes report ingestion and triage workflows (`https://docs.report-uri.com/setup/csp/`), and SecurityHeaders highlights security-grade style reporting UX (`https://securityheaders.com/about/faq/`).
+- (untrusted/web) Modern rollout UX should support both legacy `report-uri` and Reporting API semantics, matching MDN guidance (`https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/report-uri`).
 
 ## Notes
 - This file is maintained by the autonomous clone loop.

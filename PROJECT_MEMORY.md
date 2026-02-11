@@ -172,6 +172,31 @@
 - Confidence: high
 - Trust label: validated-local
 
+### 2026-02-11 - Add report-integrated violation summaries
+- Decision: Add `report --violations-file` with `--violations-top` and `--violations-top-origins` so HTML and JSON reports can include observed-violation summaries.
+- Why: Roadmap and market signals both indicate report artifacts need rollout telemetry, not only static policy findings.
+- Evidence:
+  - `src/csp_doctor/cli.py`
+  - `src/csp_doctor/schema.py`
+  - `tests/test_cli.py`
+  - `README.md`
+- Commit: `f237e36de7f3e1d9ae057fbe2e182a847cb6384b`
+- Confidence: high
+- Trust label: trusted
+- Follow-ups:
+  - Consider adding `--fail-on-skipped` for strict CI ingestion of violation sample files.
+
+### 2026-02-11 - Expand violation parser coverage for wrapped exports
+- Decision: Extend violation import parsing to support wrapped containers (`reports`/`violations`/`events`) and JSON-string embedded `body` / `csp-report` payloads.
+- Why: Real-world telemetry exports frequently wrap report records; strict parser-only support produced avoidable skips.
+- Evidence:
+  - `src/csp_doctor/violations.py`
+  - `tests/test_violations.py`
+  - `tests/test_cli.py`
+- Commit: `f237e36de7f3e1d9ae057fbe2e182a847cb6384b`
+- Confidence: medium
+- Trust label: trusted
+
 ## Mistakes And Fixes
 
 ### 2026-02-09 - `diff --baseline-out` wrote the wrong policy
@@ -227,6 +252,32 @@
 - `make check` (pass: refactor-only CLI cleanup)
 - `make check` (pass: docs cleanup - root `PLAN.md` now points to `docs/PLAN.md`)
 
+### 2026-02-11
+- `gh auth status` (pass: authenticated as `sarveshkapre`)
+- `gh issue list --limit 30 --state open --json number,title,author,createdAt,updatedAt,labels,url` (pass: `[]`, no open issues)
+- `gh run list --limit 15 --json databaseId,headSha,status,conclusion,name,event,createdAt,updatedAt,url` (pass: recent CI runs all `success`)
+- `.venv/bin/python -m pytest -q tests/test_violations.py` (pass)
+- `.venv/bin/python -m pytest -q tests/test_cli.py -k "report_outputs_json_with_violations_summary or report_outputs_html_with_violations_summary or report_rejects_invalid_violations_summary_file or violations_rejects_non_positive_limits"` (pass)
+- `make check` (fail: mypy `no-redef` in `src/csp_doctor/violations.py`)
+- `make check` (pass: after renaming duplicate local variable)
+- `gh run watch 21895844592 --exit-status` (pass)
+- Smoke:
+  - `.venv/bin/python -m csp_doctor report --csp "default-src 'self'" --format json --violations-file <tmp-ndjson> --violations-top 1 --violations-top-origins 1` (pass: JSON includes `violations.total_events=1`, top directive `script-src`)
+  - `.venv/bin/python -m csp_doctor violations --file <tmp-wrapped-json> --format json --top 1 --top-origins 1` (pass: wrapped `reports` payload parsed, top directive `img-src`)
+  - `make check` (pass: final verification after docs/version updates)
+
+## Gap Map (2026-02-11)
+- Missing:
+  - First-class baseline update workflow (`diff --baseline-update ...`) for long-lived baseline maintenance.
+- Weak:
+  - Violation import strictness controls in CI (no dedicated `--fail-on-skipped` knob yet).
+  - Analyzer parity coverage for `frame-src`/`worker-src`/`manifest-src`.
+- Parity:
+  - Policy linting with machine-readable outputs (JSON/SARIF), profile tuning, and report-only guidance.
+  - Reporting triage summaries now available in `violations`, `rollout`, and `report`.
+- Differentiator:
+  - Local-first CSP diff/baseline workflows with profile/environment-aware snapshots and strict validation.
+
 ## Market Scan (Bounded)
 
 ### 2026-02-09
@@ -260,3 +311,13 @@
 - Expectations (untrusted/web):
   - Violation reporting needs to account for `report-uri` deprecation and the Reporting API (`report-to`, `Reporting-Endpoints`).
   - Rollout workflows benefit from fast violation triage (top directives, top blocked origins) rather than only static policy linting.
+
+### 2026-02-11
+- Sources (untrusted/web):
+  - https://csp-evaluator.withgoogle.com/
+  - https://docs.report-uri.com/setup/csp/
+  - https://securityheaders.com/about/faq/
+  - https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/report-uri
+- Expectations (untrusted/web):
+  - Baseline UX expectation: immediate policy-risk diagnostics plus reporting telemetry workflows.
+  - Products in this space emphasize both actionable scoring/diagnostics and ingestion of violation events for rollout decisions.
