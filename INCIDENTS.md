@@ -36,3 +36,14 @@
   - For secret scanning actions that diff commits, avoid shallow checkouts unless the scanner explicitly supports them.
   - For PR scan actions that depend on API access, set required tokens explicitly in workflow `env`.
   - Treat old failing runs as unresolved until both push and PR paths pass after workflow changes.
+
+### 2026-02-12T20:01:26Z | Codex execution failure
+- Date: 2026-02-12T20:01:26Z
+- Trigger: Codex execution failure
+- Impact: Repo session did not complete cleanly
+- Root Cause: codex exec returned a non-zero status
+- Fix: Captured failure logs and kept repository in a recoverable state
+- Prevention Rule: Re-run with same pass context and inspect pass log before retrying
+- Evidence: pass_log=logs/20260212-101456-csp-doctor-cycle-2.log
+- Commit: pending
+- Confidence: medium
